@@ -133,7 +133,7 @@
                             <input type="text" id="friend-username-input" placeholder="Add username..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
                             <button id="add-friend-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg transition-colors cursor-pointer">Add</button>
                         </div>
-                        <div id="friends-list" class="space-y-1.5 max-h-36 overflow-y-auto pr-1"></div>
+                        <div id="friends-list" class="space-y-1.5 max-h-48 overflow-y-auto pr-1"></div>
                     </div>
                 </div>
 
@@ -186,7 +186,7 @@
                         <span>🚀 System Release Update</span>
                     </div>
                     <p class="text-xs text-slate-300 leading-relaxed">
-                        Mesh Chat updated with bug-fixed friending system and WebRTC video calling restricted strictly to mutual friends.
+                        Mesh Chat updated with automatic mutual friend matching (mutual request auto-accept), instant Base64 PFP uploads, and WebRTC video calls.
                     </p>
                     <span class="text-[10px] text-slate-500 block">System Log</span>
                 </div>
@@ -400,31 +400,28 @@
             }
         }
 
-        // --- PROFILE PICTURE (PFP) UPLOAD HANDLER ---
-        pfpUploadInput.addEventListener('change', async (e) => {
+        // --- PROFILE PICTURE (PFP) UPLOAD HANDLER (BASE64 DIRECT STORAGE) ---
+        pfpUploadInput.addEventListener('change', (e) => {
             if (!e.target.files || !e.target.files[0] || !currentUser) return;
             const file = e.target.files[0];
 
-            try {
-                const fileExt = file.name.split('.').pop();
-                const filePath = `avatars/${currentUser.id}_${Date.now()}.${fileExt}`;
+            if (file.size > 1024 * 1024 * 2) {
+                return alert("Please select an image file under 2MB.");
+            }
 
-                const { error: uploadError } = await supabaseClient.storage
-                    .from('chat-media')
-                    .upload(filePath, file, { upsert: true });
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const avatarUrl = event.target.result;
 
-                if (uploadError) throw uploadError;
-
-                const { data: urlData } = supabaseClient.storage
-                    .from('chat-media')
-                    .getPublicUrl(filePath);
-
-                const avatarUrl = urlData.publicUrl;
-
-                await supabaseClient
+                const { error } = await supabaseClient
                     .from('profiles')
                     .update({ avatar_url: avatarUrl })
                     .eq('id', currentUser.id);
+
+                if (error) {
+                    alert("Failed to save profile picture: " + error.message);
+                    return;
+                }
 
                 currentUser.avatar_url = avatarUrl;
                 userAvatarCache.set(currentUser.username, avatarUrl);
@@ -432,9 +429,9 @@
                 
                 alert("Profile picture updated successfully!");
                 loadChannelMessages();
-            } catch (err) {
-                alert("Failed to upload profile picture: " + err.message);
-            }
+            };
+            reader.onerror = () => alert("Failed to read selected image.");
+            reader.readAsDataURL(file);
         });
 
         function renderUserAvatar(username, avatarUrl, element) {
@@ -478,7 +475,7 @@
             const { data: existingUser } = await supabaseClient
                 .from('profiles')
                 .select('username')
-                .eq('username', username)
+                .ilike('username', username)
                 .maybeSingle();
 
             if (existingUser) return showAuthError("Username is already taken.");
@@ -507,7 +504,7 @@
             const { data: userProfile, error } = await supabaseClient
                 .from('profiles')
                 .select('*')
-                .eq('username', username)
+                .ilike('username', username)
                 .maybeSingle();
 
             if (error || !userProfile) return showAuthError("Account not found.");
@@ -546,7 +543,7 @@
             window.location.reload();
         });
 
-        // --- FRIENDS & DIRECT MESSAGING SYSTEM (BUG-FIXED) ---
+        // --- FRIENDS & DIRECT MESSAGING SYSTEM (MUTUAL AUTO-ACCEPT) ---
         function getDMChannelID(username1, username2) {
             const sorted = [username1, username2].sort();
             return `dm_${sorted[0]}_${sorted[1]}`;
@@ -556,42 +553,66 @@
             const input = document.getElementById('friend-username-input');
             const targetUsername = input.value.trim();
             if (!targetUsername) return;
-            if (targetUsername === currentUser.username) return alert("You cannot add yourself.");
+            if (targetUsername.toLowerCase() === currentUser.username.toLowerCase()) return alert("You cannot add yourself.");
 
-            const { data: targetUser } = await supabaseClient
+            const { data: targetUser, error: findError } = await supabaseClient
                 .from('profiles')
-                .select('*')
-                .eq('username', targetUsername)
+                .select('id, username')
+                .ilike('username', targetUsername)
                 .maybeSingle();
 
-            if (!targetUser) return alert("User not found.");
+            if (findError) return alert("Error locating user: " + findError.message);
+            if (!targetUser) return alert(`User "${targetUsername}" not found.`);
 
-            // Fixed PostgREST query: fetch records for user and check in JS to prevent syntax errors
-            const { data: existingRecords } = await supabaseClient
+            const { data: existingRecords, error: checkError } = await supabaseClient
                 .from('friends')
                 .select('*')
                 .or(`user_id.eq.${currentUser.id},friend_id.eq.${currentUser.id}`);
 
-            const existing = existingRecords?.find(f => 
+            if (checkError) return alert("Error checking friends: " + checkError.message);
+
+            const existing = (existingRecords || []).find(f => 
                 (f.user_id === currentUser.id && f.friend_id === targetUser.id) ||
                 (f.user_id === targetUser.id && f.friend_id === currentUser.id)
             );
 
             if (existing) {
-                if (existing.status === 'accepted') alert("You are already friends!");
-                else alert("A friend request is already pending.");
+                if (existing.status === 'accepted') {
+                    alert("You are already friends!");
+                    return;
+                }
+                
+                // If the target user already sent a pending request to us, sending a request back automatically accepts it!
+                if (existing.user_id === targetUser.id && existing.friend_id === currentUser.id && existing.status === 'pending') {
+                    const { error: updateError } = await supabaseClient
+                        .from('friends')
+                        .update({ status: 'accepted' })
+                        .eq('id', existing.id);
+
+                    if (updateError) {
+                        alert("Error accepting friend request: " + updateError.message);
+                    } else {
+                        alert(`You and ${targetUser.username} are now friends!`);
+                        input.value = '';
+                        loadFriends();
+                    }
+                    return;
+                }
+
+                alert("A friend request is already pending.");
                 return;
             }
 
-            const { error } = await supabaseClient.from('friends').insert([{
+            const { error: insertError } = await supabaseClient.from('friends').insert([{
                 user_id: currentUser.id,
                 friend_id: targetUser.id,
                 status: 'pending'
             }]);
 
-            if (error) alert("Error sending request: " + error.message);
-            else {
-                alert(`Friend request sent to ${targetUsername}!`);
+            if (insertError) {
+                alert("Error sending request: " + insertError.message);
+            } else {
+                alert(`Friend request sent to ${targetUser.username}!`);
                 input.value = '';
                 loadFriends();
             }
@@ -600,14 +621,15 @@
         async function loadFriends() {
             if (!currentUser) return;
 
-            const { data: records } = await supabaseClient
+            const { data: records, error: friendsError } = await supabaseClient
                 .from('friends')
-                .select(`
-                    id, user_id, friend_id, status,
-                    user_profile:profiles!user_id(id, username, avatar_url),
-                    friend_profile:profiles!friend_id(id, username, avatar_url)
-                `)
+                .select('*')
                 .or(`user_id.eq.${currentUser.id},friend_id.eq.${currentUser.id}`);
+
+            if (friendsError) {
+                console.error("Failed to fetch friends list:", friendsError.message);
+                return;
+            }
 
             userFriends.clear();
             const friendsListEl = document.getElementById('friends-list');
@@ -618,67 +640,129 @@
             dmListEl.innerHTML = '';
             callSelectEl.innerHTML = '<option value="">Select a friend to call...</option>';
 
+            if (!records || records.length === 0) {
+                dmListEl.innerHTML = '<p id="no-dms-msg" class="text-[11px] text-slate-500 italic px-2">No active DMs with friends</p>';
+                friendsListEl.innerHTML = '<p class="text-[11px] text-slate-500 italic px-1">No friends or pending requests</p>';
+                return;
+            }
+
+            const otherUserIds = records.map(r => r.user_id === currentUser.id ? r.friend_id : r.user_id);
+            const uniqueIds = [...new Set(otherUserIds)];
+
+            const { data: profiles, error: profilesError } = await supabaseClient
+                .from('profiles')
+                .select('id, username, avatar_url')
+                .in('id', uniqueIds);
+
+            if (profilesError) {
+                console.error("Failed to load friend profiles:", profilesError.message);
+                return;
+            }
+
+            const profileMap = new Map((profiles || []).map(p => [p.id, p]));
             let hasDMs = false;
 
-            if (records) {
-                records.forEach(req => {
-                    const isSender = req.user_id === currentUser.id;
-                    const otherUserObj = isSender ? req.friend_profile : req.user_profile;
+            const acceptedList = [];
+            const incomingPendingList = [];
+            const outgoingPendingList = [];
 
-                    // Handle array or single object structure returned by Supabase JS join
-                    const otherUser = Array.isArray(otherUserObj) ? otherUserObj[0] : otherUserObj;
+            records.forEach(req => {
+                const isSender = req.user_id === currentUser.id;
+                const otherUserId = isSender ? req.friend_id : req.user_id;
+                const otherUser = profileMap.get(otherUserId);
 
-                    if (!otherUser) return;
-                    if (otherUser.avatar_url) userAvatarCache.set(otherUser.username, otherUser.avatar_url);
+                if (!otherUser) return;
+                if (otherUser.avatar_url) userAvatarCache.set(otherUser.username, otherUser.avatar_url);
 
-                    if (req.status === 'accepted') {
-                        userFriends.add(otherUser.username);
-                        hasDMs = true;
-
-                        // Friend item in sidebar
-                        const item = document.createElement('div');
-                        item.className = "flex items-center justify-between text-xs bg-slate-950 p-2 rounded-lg border border-slate-800 gap-1";
-                        item.innerHTML = `
-                            <span class="font-semibold text-slate-300 truncate">${escapeHTML(otherUser.username)}</span>
-                            <div class="flex gap-1 shrink-0">
-                                <button onclick="window.openDM('${escapeHTML(otherUser.username)}')" class="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 text-[10px] px-1.5 py-0.5 rounded transition-colors cursor-pointer">DM</button>
-                                <button onclick="window.startVideoCall('${escapeHTML(otherUser.username)}')" class="bg-emerald-600/30 hover:bg-emerald-600 text-emerald-200 text-[10px] px-1.5 py-0.5 rounded transition-colors cursor-pointer">📹</button>
-                                <button onclick="window.removeFriend('${req.id}')" class="text-rose-400 hover:text-rose-300 text-[10px] px-1 cursor-pointer">✕</button>
-                            </div>
-                        `;
-                        friendsListEl.appendChild(item);
-
-                        // DM channel entry
-                        const dmBtn = document.createElement('button');
-                        const channelId = getDMChannelID(currentUser.username, otherUser.username);
-                        dmBtn.dataset.channel = channelId;
-                        dmBtn.className = "channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors flex items-center gap-2";
-                        dmBtn.innerHTML = `💬 ${escapeHTML(otherUser.username)}`;
-                        dmBtn.onclick = () => openDM(otherUser.username);
-                        dmListEl.appendChild(dmBtn);
-
-                        // Option in call select dropdown
-                        const opt = document.createElement('option');
-                        opt.value = otherUser.username;
-                        opt.textContent = otherUser.username;
-                        callSelectEl.appendChild(opt);
-
-                    } else if (req.status === 'pending') {
-                        const item = document.createElement('div');
-                        item.className = "flex items-center justify-between text-xs bg-slate-950 p-2 rounded-lg border border-slate-800 gap-1";
-                        if (isSender) {
-                            item.innerHTML = `<span class="text-slate-400 italic truncate">${escapeHTML(otherUser.username)} (Pending)</span>`;
-                        } else {
-                            item.innerHTML = `
-                                <span class="font-semibold text-slate-200 truncate">${escapeHTML(otherUser.username)}</span>
-                                <div class="flex gap-1 shrink-0">
-                                    <button onclick="window.acceptFriend('${req.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded transition-colors cursor-pointer">Accept</button>
-                                    <button onclick="window.removeFriend('${req.id}')" class="bg-rose-600 hover:bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded transition-colors cursor-pointer">Decline</button>
-                                </div>
-                            `;
-                        }
-                        friendsListEl.appendChild(item);
+                if (req.status === 'accepted') {
+                    userFriends.add(otherUser.username);
+                    acceptedList.push({ req, otherUser });
+                } else if (req.status === 'pending') {
+                    if (isSender) {
+                        outgoingPendingList.push({ req, otherUser });
+                    } else {
+                        incomingPendingList.push({ req, otherUser });
                     }
+                }
+            });
+
+            // 1. Render Incoming Friend Requests
+            if (incomingPendingList.length > 0) {
+                const header = document.createElement('div');
+                header.className = "text-[10px] font-bold text-amber-400 uppercase tracking-wider mt-1 mb-1";
+                header.textContent = `🔔 Pending Requests (${incomingPendingList.length})`;
+                friendsListEl.appendChild(header);
+
+                incomingPendingList.forEach(({ req, otherUser }) => {
+                    const item = document.createElement('div');
+                    item.className = "flex items-center justify-between text-xs bg-amber-950/40 border border-amber-500/40 p-2 rounded-lg gap-1 animate-pulse";
+                    item.innerHTML = `
+                        <span class="font-bold text-amber-200 truncate">${escapeHTML(otherUser.username)}</span>
+                        <div class="flex gap-1 shrink-0">
+                            <button onclick="window.acceptFriend('${req.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded transition-colors cursor-pointer">Accept</button>
+                            <button onclick="window.removeFriend('${req.id}')" class="bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold px-2 py-1 rounded transition-colors cursor-pointer">Decline</button>
+                        </div>
+                    `;
+                    friendsListEl.appendChild(item);
+                });
+            }
+
+            // 2. Render Confirmed Friends
+            if (acceptedList.length > 0) {
+                hasDMs = true;
+                const header = document.createElement('div');
+                header.className = "text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-2 mb-1";
+                header.textContent = `Friends (${acceptedList.length})`;
+                friendsListEl.appendChild(header);
+
+                acceptedList.forEach(({ req, otherUser }) => {
+                    const item = document.createElement('div');
+                    item.className = "flex items-center justify-between text-xs bg-slate-950 p-2 rounded-lg border border-slate-800 gap-1";
+                    item.innerHTML = `
+                        <div class="flex items-center gap-1.5 truncate">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block shrink-0"></span>
+                            <span class="font-semibold text-slate-300 truncate">${escapeHTML(otherUser.username)}</span>
+                        </div>
+                        <div class="flex gap-1 shrink-0">
+                            <button onclick="window.openDM('${escapeHTML(otherUser.username)}')" class="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 text-[10px] px-1.5 py-0.5 rounded transition-colors cursor-pointer">DM</button>
+                            <button onclick="window.startVideoCall('${escapeHTML(otherUser.username)}')" class="bg-emerald-600/30 hover:bg-emerald-600 text-emerald-200 text-[10px] px-1.5 py-0.5 rounded transition-colors cursor-pointer">📹</button>
+                            <button onclick="window.removeFriend('${req.id}')" class="text-rose-400 hover:text-rose-300 text-[10px] px-1 cursor-pointer" title="Remove Friend">✕</button>
+                        </div>
+                    `;
+                    friendsListEl.appendChild(item);
+
+                    // DM channel entry
+                    const dmBtn = document.createElement('button');
+                    const channelId = getDMChannelID(currentUser.username, otherUser.username);
+                    dmBtn.dataset.channel = channelId;
+                    dmBtn.className = "channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors flex items-center gap-2";
+                    dmBtn.innerHTML = `💬 ${escapeHTML(otherUser.username)}`;
+                    dmBtn.onclick = () => openDM(otherUser.username);
+                    dmListEl.appendChild(dmBtn);
+
+                    // Dropdown option for video calling
+                    const opt = document.createElement('option');
+                    opt.value = otherUser.username;
+                    opt.textContent = otherUser.username;
+                    callSelectEl.appendChild(opt);
+                });
+            }
+
+            // 3. Render Outgoing Pending Requests
+            if (outgoingPendingList.length > 0) {
+                const header = document.createElement('div');
+                header.className = "text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-2 mb-1";
+                header.textContent = `Sent Requests (${outgoingPendingList.length})`;
+                friendsListEl.appendChild(header);
+
+                outgoingPendingList.forEach(({ req, otherUser }) => {
+                    const item = document.createElement('div');
+                    item.className = "flex items-center justify-between text-xs bg-slate-950/60 p-2 rounded-lg border border-slate-800/80 gap-1";
+                    item.innerHTML = `
+                        <span class="text-slate-400 italic truncate">${escapeHTML(otherUser.username)}</span>
+                        <button onclick="window.removeFriend('${req.id}')" class="text-rose-400 hover:text-rose-300 text-[10px] px-1 cursor-pointer" title="Cancel Request">✕ Cancel</button>
+                    `;
+                    friendsListEl.appendChild(item);
                 });
             }
 
@@ -688,12 +772,14 @@
         }
 
         async function acceptFriend(id) {
-            await supabaseClient.from('friends').update({ status: 'accepted' }).eq('id', id);
+            const { error } = await supabaseClient.from('friends').update({ status: 'accepted' }).eq('id', id);
+            if (error) alert("Could not accept request: " + error.message);
             loadFriends();
         }
 
         async function removeFriend(id) {
-            await supabaseClient.from('friends').delete().eq('id', id);
+            const { error } = await supabaseClient.from('friends').delete().eq('id', id);
+            if (error) alert("Could not delete record: " + error.message);
             loadFriends();
         }
 
@@ -722,7 +808,7 @@
             loadChannelMessages();
         }
 
-        // Global functions binding for inline HTML onclick triggers
+        // Bind global function pointers for inline HTML event attributes
         window.openDM = openDM;
         window.acceptFriend = acceptFriend;
         window.removeFriend = removeFriend;
@@ -828,10 +914,13 @@
         function startFastPolling() {
             if (fastPollingInterval) clearInterval(fastPollingInterval);
             fastPollingInterval = setInterval(() => {
-                if (currentUser && activeChannel && activeChannel !== 'updates') {
-                    loadChannelMessages();
+                if (currentUser) {
+                    if (activeChannel && activeChannel !== 'updates') {
+                        loadChannelMessages();
+                    }
+                    loadFriends();
                 }
-            }, 500);
+            }, 1500);
         }
 
         async function appendMessageUI(msg) {
@@ -854,7 +943,7 @@
             if (msg.media_url) {
                 const url = msg.media_url.toLowerCase();
 
-                if (url.match(/\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i)) {
+                if (url.match(/\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i) || url.startsWith('data:image/')) {
                     mediaContent = `<div class="mt-2"><img src="${escapeHTML(msg.media_url)}" class="max-h-60 rounded-lg border border-slate-800 object-cover max-w-full" loading="lazy"></div>`;
                 } else if (url.match(/\.(mp4|webm|ogg|mov)($|\?)/i)) {
                     mediaContent = `<div class="mt-2"><video src="${escapeHTML(msg.media_url)}" controls class="max-h-60 w-full rounded-lg border border-slate-800"></video></div>`;
@@ -936,22 +1025,14 @@
 
             if (selectedFile) {
                 try {
-                    const fileExt = selectedFile.name.split('.').pop();
-                    const filePath = `${currentUser.username}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-
-                    const { data: uploadData, error: uploadError } = await supabaseClient.storage
-                        .from('chat-media')
-                        .upload(filePath, selectedFile);
-
-                    if (uploadError) throw uploadError;
-
-                    const { data: urlData } = supabaseClient.storage
-                        .from('chat-media')
-                        .getPublicUrl(filePath);
-
-                    mediaUrl = urlData.publicUrl;
+                    const reader = new FileReader();
+                    mediaUrl = await new Promise((resolve, reject) => {
+                        reader.onload = (evt) => resolve(evt.target.result);
+                        reader.onerror = (err) => reject(err);
+                        reader.readAsDataURL(selectedFile);
+                    });
                 } catch (err) {
-                    alert("Media upload failed: " + err.message);
+                    alert("Media reading failed: " + err.message);
                     sendBtn.disabled = false;
                     sendBtn.textContent = 'Send';
                     return;
@@ -1020,9 +1101,8 @@
                 targetUsername = document.getElementById('target-call-user').value.trim();
             }
             if (!targetUsername) return alert("Please select a friend to call.");
-            if (targetUsername === currentUser.username) return alert("You cannot call yourself.");
+            if (targetUsername.toLowerCase() === currentUser.username.toLowerCase()) return alert("You cannot call yourself.");
 
-            // STRICT FRIENDS ONLY GUARD
             if (!userFriends.has(targetUsername)) {
                 return alert("Video calling is restricted to confirmed friends only.");
             }
@@ -1066,7 +1146,6 @@
                 return;
             }
 
-            // Verify caller is a friend
             if (!userFriends.has(payload.callerUsername)) {
                 sendSignalToUser(payload.callerUsername, { type: 'end-call' });
                 return;
