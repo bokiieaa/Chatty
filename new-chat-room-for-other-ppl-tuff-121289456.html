@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mesh Chat</title>
+    <!-- Favicon from same directory -->
     <link rel="icon" type="image/png" href="icon.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -50,44 +51,35 @@
     <!-- Incoming Call Overlay Dialog -->
     <div id="incoming-call-modal" class="hidden fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl animate-bounce">
-            <div class="w-16 h-16 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-full flex items-center justify-center mx-auto text-2xl font-black">📹</div>
+            <div class="w-16 h-16 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-full flex items-center justify-center mx-auto text-2xl font-black">📞</div>
             <div>
                 <h3 id="incoming-caller-name" class="text-lg font-bold text-slate-100">User</h3>
-                <p class="text-xs text-slate-400 mt-0.5">Incoming Video Call from Friend...</p>
+                <p class="text-xs text-slate-400 mt-0.5">Incoming Voice Call...</p>
             </div>
             <div class="flex gap-3 pt-2">
                 <button id="decline-call-btn" class="flex-1 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold py-2.5 rounded-xl transition-colors cursor-pointer">Decline</button>
-                <button id="accept-call-btn" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2.5 rounded-xl transition-colors cursor-pointer">Accept Video</button>
+                <button id="accept-call-btn" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2.5 rounded-xl transition-colors cursor-pointer">Accept</button>
             </div>
         </div>
     </div>
 
-    <!-- Active Video Call Overlay Modal -->
-    <div id="video-call-modal" class="hidden fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-6">
-        <div class="relative w-full max-w-4xl h-[70vh] bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col justify-between">
-            <div class="relative flex-1 w-full h-full bg-slate-950 flex items-center justify-center overflow-hidden">
-                <video id="remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
-                <div class="absolute bottom-4 right-4 w-32 h-24 sm:w-48 sm:h-36 bg-slate-900 border-2 border-indigo-500/50 rounded-xl overflow-hidden shadow-2xl z-10">
-                    <video id="local-video" autoplay playsinline muted class="w-full h-full object-cover"></video>
-                </div>
-                <div class="absolute top-4 left-4 bg-slate-900/80 backdrop-blur-md border border-slate-800 px-3 py-1.5 rounded-lg flex items-center gap-2">
-                    <span class="relative flex h-2.5 w-2.5">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                    </span>
-                    <span id="call-status" class="text-xs font-bold text-slate-200">Connected</span>
-                </div>
-            </div>
-            <div class="bg-slate-900 p-4 border-t border-slate-800 flex items-center justify-center gap-4">
-                <button id="toggle-audio-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 p-3 rounded-full text-sm font-bold transition-colors cursor-pointer">🎙️ Mute</button>
-                <button id="toggle-video-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 p-3 rounded-full text-sm font-bold transition-colors cursor-pointer">📹 Cam Off</button>
-                <button id="end-call-btn" class="bg-rose-600 hover:bg-rose-500 text-white px-6 py-3 rounded-full text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer">End Call</button>
-            </div>
+    <!-- Active Call Bar -->
+    <div id="call-bar" class="hidden bg-indigo-950/80 border-b border-indigo-500/30 px-4 py-2.5 flex items-center justify-between z-20 shrink-0">
+        <div class="flex items-center gap-3 min-w-0">
+            <span class="relative flex h-3 w-3 shrink-0">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </span>
+            <span id="call-status" class="text-xs font-bold text-indigo-200 truncate">Calling...</span>
+            <audio id="remote-audio" autoplay></audio>
         </div>
+        <button id="end-call-btn" class="bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer shrink-0 ml-2">End Call</button>
     </div>
 
     <!-- Main App Layout -->
     <div class="flex-1 flex overflow-hidden min-w-0">
+        
+        <!-- Sidebar Navigation -->
         <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between shrink-0 hidden md:flex">
             <div class="p-4 space-y-5 overflow-y-auto max-h-[calc(100vh-70px)]">
                 <div class="flex items-center gap-2 mb-2">
@@ -95,6 +87,7 @@
                     <span class="font-bold text-sm text-slate-200">Mesh Chat</span>
                 </div>
 
+                <!-- Channels Section -->
                 <div>
                     <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Channels & Feeds</h2>
                     <nav class="space-y-1" id="channel-list">
@@ -105,6 +98,7 @@
                     </nav>
                 </div>
 
+                <!-- Direct Messages Section -->
                 <div>
                     <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Direct Messages</h2>
                     <nav class="space-y-1" id="dm-list">
@@ -112,6 +106,7 @@
                     </nav>
                 </div>
 
+                <!-- Friends System Section -->
                 <div>
                     <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Friends</h2>
                     <div class="space-y-2">
@@ -119,17 +114,16 @@
                             <input type="text" id="friend-username-input" placeholder="Add username..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
                             <button id="add-friend-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg transition-colors cursor-pointer">Add</button>
                         </div>
-                        <div id="friends-list" class="space-y-1.5 max-h-48 overflow-y-auto pr-1"></div>
+                        <div id="friends-list" class="space-y-1.5 max-h-36 overflow-y-auto pr-1"></div>
                     </div>
                 </div>
 
+                <!-- Direct Voice Call -->
                 <div>
-                    <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Friend Video Call</h2>
+                    <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Voice Call</h2>
                     <div class="space-y-2">
-                        <select id="target-call-user" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
-                            <option value="">Select a friend to call...</option>
-                        </select>
-                        <button id="start-call-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-1.5 rounded-lg transition-colors cursor-pointer">📹 Start Video Call</button>
+                        <input type="text" id="target-call-user" placeholder="Target Username..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
+                        <button id="start-call-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-1.5 rounded-lg transition-colors cursor-pointer">Call User</button>
                     </div>
                 </div>
 
@@ -142,6 +136,7 @@
                 </div>
             </div>
 
+            <!-- Profile & PFP Upload Footer -->
             <div class="p-4 border-t border-slate-800 flex items-center justify-between shrink-0">
                 <div class="flex items-center gap-2 min-w-0">
                     <div id="pfp-container" onclick="document.getElementById('pfp-upload-input').click()" class="relative group cursor-pointer shrink-0" title="Click to change profile picture">
@@ -154,26 +149,30 @@
             </div>
         </aside>
 
+        <!-- Chat / Updates Main Area -->
         <main class="flex-1 flex flex-col bg-slate-950 min-w-0 overflow-hidden">
             <header class="p-3 sm:p-4 border-b border-slate-800 bg-slate-900/40 flex items-center justify-between shrink-0">
                 <h1 id="active-channel-title" class="text-sm font-bold text-slate-200 truncate"># general</h1>
             </header>
 
+            <!-- Regular Messages Feed Container -->
             <div id="chat-box" class="flex-1 p-3 sm:p-6 overflow-y-auto space-y-4 min-w-0"></div>
 
+            <!-- Dedicated Updates / System Log Container -->
             <div id="updates-box" class="hidden flex-1 p-3 sm:p-6 overflow-y-auto space-y-4 min-w-0">
                 <div class="p-4 bg-indigo-950/30 border border-indigo-500/20 rounded-xl space-y-2">
                     <div class="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider">
                         <span>🚀 System Release Update</span>
                     </div>
                     <p class="text-xs text-slate-300 leading-relaxed">
-                        Mesh Chat updated with robust fallback profile resolution and instant real-time friend updates.
+                        Mesh Chat initialized with tab notifications, direct messaging, friend systems, YouTube embedded player (videos, Shorts, live streams), and profile picture customization.
                     </p>
                     <span class="text-[10px] text-slate-500 block">System Log</span>
                 </div>
                 <div id="live-updates-list" class="space-y-3"></div>
             </div>
 
+            <!-- Reply Banner -->
             <div id="reply-preview" class="hidden bg-slate-900 border-t border-slate-800 px-3 py-2 flex items-center justify-between text-xs text-slate-400 shrink-0 min-w-0 gap-2">
                 <div class="truncate flex-1 min-w-0">
                     Replying to <b id="reply-target-user" class="text-indigo-400"></b>: "<span id="reply-target-text" class="italic truncate inline-block align-bottom max-w-[200px] sm:max-w-md"></span>"
@@ -181,6 +180,7 @@
                 <button id="cancel-reply-btn" class="text-slate-500 hover:text-slate-300 font-bold shrink-0 text-base px-1.5 cursor-pointer">&times;</button>
             </div>
 
+            <!-- Media Preview Banner -->
             <div id="file-preview" class="hidden bg-slate-900 border-t border-slate-800 px-3 py-2 flex items-center justify-between text-xs text-indigo-300 shrink-0 min-w-0 gap-2">
                 <span id="file-preview-name" class="truncate flex-1 min-w-0"></span>
                 <button id="cancel-file-btn" class="text-slate-500 hover:text-slate-300 font-bold shrink-0 text-base px-1.5 cursor-pointer">&times;</button>
@@ -214,10 +214,14 @@
         let fastPollingInterval = null;
         let userAvatarCache = new Map();
 
+        // Unread Notification State
         let unreadCount = 0;
         let isTabActive = true;
+
+        // Friends & DMs State
         let userFriends = new Set();
 
+        // WebRTC & Ringtone State
         let peerConnection = null;
         let localStream = null;
         let activeCallTarget = null;
@@ -227,8 +231,6 @@
         let ringtoneInterval = null;
         let audioCtx = null;
         let pendingOfferPayload = null;
-        let isAudioMuted = false;
-        let isVideoMuted = false;
 
         const rtcConfig = {
             iceServers: [
@@ -237,6 +239,7 @@
             ]
         };
 
+        // DOM Elements
         const authModal = document.getElementById('auth-modal');
         const authError = document.getElementById('auth-error');
         const loginBtn = document.getElementById('login-btn');
@@ -255,21 +258,29 @@
         const pfpUploadInput = document.getElementById('pfp-upload-input');
 
         const incomingCallModal = document.getElementById('incoming-call-modal');
-        const videoCallModal = document.getElementById('video-call-modal');
         const incomingCallerName = document.getElementById('incoming-caller-name');
         const acceptCallBtn = document.getElementById('accept-call-btn');
         const declineCallBtn = document.getElementById('decline-call-btn');
 
+        // --- YOUTUBE EMBED HELPER ---
         function extractYouTubeLinks(text) {
             const ytRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|live\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/gi;
             let match;
             const embeds = [];
+            
             while ((match = ytRegex.exec(text)) !== null) {
-                embeds.push({ url: match[0], videoId: match[1], isShort: match[0].includes('/shorts/') });
+                const videoId = match[1];
+                const isShort = match[0].includes('/shorts/');
+                embeds.push({
+                    url: match[0],
+                    videoId: videoId,
+                    isShort: isShort
+                });
             }
             return embeds;
         }
 
+        // --- TAB VISIBILITY & UNREAD NOTIFICATION HANDLER ---
         function handleTabFocusChange() {
             isTabActive = !document.hidden && document.hasFocus();
             if (isTabActive) {
@@ -277,6 +288,7 @@
                 document.title = "Mesh Chat";
             }
         }
+
         window.addEventListener('visibilitychange', handleTabFocusChange);
         window.addEventListener('blur', () => { isTabActive = false; });
         window.addEventListener('focus', handleTabFocusChange);
@@ -288,10 +300,15 @@
             }
         }
 
+        // --- AUDIO UNLOCKER FOR RECEIVING CALLS ---
         function unlockAudio() {
             try {
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioCtx.state === 'suspended') audioCtx.resume();
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
             } catch(e) {}
             window.removeEventListener('click', unlockAudio);
             window.removeEventListener('keydown', unlockAudio);
@@ -299,65 +316,101 @@
         window.addEventListener('click', unlockAudio);
         window.addEventListener('keydown', unlockAudio);
 
+        // --- RINGTONE PLAYER ---
         function playRingtone() {
             stopRingtone();
             try {
                 ringtoneAudio = new Audio('ringtone.mp3');
                 ringtoneAudio.loop = true;
-                const p = ringtoneAudio.play();
-                if (p !== undefined) p.then(() => {}).catch(() => playFallbackSynthRingtone());
-            } catch (err) { playFallbackSynthRingtone(); }
+                
+                const playPromise = ringtoneAudio.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {}).catch(err => playFallbackSynthRingtone());
+                }
+            } catch (err) {
+                playFallbackSynthRingtone();
+            }
         }
 
         function playFallbackSynthRingtone() {
             try {
                 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 if (audioCtx.state === 'suspended') audioCtx.resume();
+
                 function playBurst() {
                     if (!audioCtx) return;
                     const osc1 = audioCtx.createOscillator();
                     const osc2 = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
+
                     osc1.frequency.value = 440;
                     osc2.frequency.value = 480;
+
                     gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
                     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.8);
-                    osc1.connect(gain); osc2.connect(gain); gain.connect(audioCtx.destination);
-                    osc1.start(); osc2.start();
-                    osc1.stop(audioCtx.currentTime + 1.8); osc2.stop(audioCtx.currentTime + 1.8);
+
+                    osc1.connect(gain);
+                    osc2.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    osc1.start();
+                    osc2.start();
+                    osc1.stop(audioCtx.currentTime + 1.8);
+                    osc2.stop(audioCtx.currentTime + 1.8);
                 }
+
                 playBurst();
                 ringtoneInterval = setInterval(playBurst, 3000);
             } catch(e) {}
         }
 
         function stopRingtone() {
-            if (ringtoneAudio) { ringtoneAudio.pause(); ringtoneAudio.currentTime = 0; ringtoneAudio = null; }
-            if (ringtoneInterval) { clearInterval(ringtoneInterval); ringtoneInterval = null; }
+            if (ringtoneAudio) {
+                ringtoneAudio.pause();
+                ringtoneAudio.currentTime = 0;
+                ringtoneAudio = null;
+            }
+            if (ringtoneInterval) {
+                clearInterval(ringtoneInterval);
+                ringtoneInterval = null;
+            }
         }
 
-        pfpUploadInput.addEventListener('change', (e) => {
+        // --- PROFILE PICTURE (PFP) UPLOAD HANDLER ---
+        pfpUploadInput.addEventListener('change', async (e) => {
             if (!e.target.files || !e.target.files[0] || !currentUser) return;
             const file = e.target.files[0];
-            if (file.size > 1024 * 1024 * 2) return alert("Please select an image file under 2MB.");
 
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const avatarUrl = event.target.result;
-                const { error } = await supabaseClient
+            try {
+                const fileExt = file.name.split('.').pop();
+                const filePath = `avatars/${currentUser.id}_${Date.now()}.${fileExt}`;
+
+                const { error: uploadError } = await supabaseClient.storage
+                    .from('chat-media')
+                    .upload(filePath, file, { upsert: true });
+
+                if (uploadError) throw uploadError;
+
+                const { data: urlData } = supabaseClient.storage
+                    .from('chat-media')
+                    .getPublicUrl(filePath);
+
+                const avatarUrl = urlData.publicUrl;
+
+                await supabaseClient
                     .from('profiles')
                     .update({ avatar_url: avatarUrl })
                     .eq('id', currentUser.id);
 
-                if (error) return alert("Failed to save profile picture: " + error.message);
-
                 currentUser.avatar_url = avatarUrl;
                 userAvatarCache.set(currentUser.username, avatarUrl);
                 renderUserAvatar(currentUser.username, avatarUrl, document.getElementById('user-avatar'));
+                
                 alert("Profile picture updated successfully!");
                 loadChannelMessages();
-            };
-            reader.readAsDataURL(file);
+            } catch (err) {
+                alert("Failed to upload profile picture: " + err.message);
+            }
         });
 
         function renderUserAvatar(username, avatarUrl, element) {
@@ -370,16 +423,19 @@
 
         async function fetchUserAvatar(username) {
             if (userAvatarCache.has(username)) return userAvatarCache.get(username);
+
             const { data } = await supabaseClient
                 .from('profiles')
                 .select('avatar_url')
                 .eq('username', username)
                 .maybeSingle();
+
             const url = data ? data.avatar_url : null;
             userAvatarCache.set(username, url);
             return url;
         }
 
+        // --- AUTHENTICATION ---
         async function hashPassword(password) {
             const encoder = new TextEncoder();
             const data = encoder.encode(password);
@@ -398,7 +454,7 @@
             const { data: existingUser } = await supabaseClient
                 .from('profiles')
                 .select('username')
-                .ilike('username', username)
+                .eq('username', username)
                 .maybeSingle();
 
             if (existingUser) return showAuthError("Username is already taken.");
@@ -427,7 +483,7 @@
             const { data: userProfile, error } = await supabaseClient
                 .from('profiles')
                 .select('*')
-                .ilike('username', username)
+                .eq('username', username)
                 .maybeSingle();
 
             if (error || !userProfile) return showAuthError("Account not found.");
@@ -445,11 +501,14 @@
             currentUser = { id: user.id, username, avatar_url: user.avatar_url };
             document.getElementById('current-user-display').textContent = username;
             
-            if (user.avatar_url) userAvatarCache.set(username, user.avatar_url);
+            if (user.avatar_url) {
+                userAvatarCache.set(username, user.avatar_url);
+            }
             renderUserAvatar(username, user.avatar_url, document.getElementById('user-avatar'));
 
             authModal.classList.add('hidden');
-            addSystemUpdate(`User <b>${escapeHTML(username)}</b> connected.`);
+            
+            addSystemUpdate(`User <b>${escapeHTML(username)}</b> connected to node.`);
 
             listenToPersonalSignaling();
             loadFriends();
@@ -459,74 +518,72 @@
             listenToRealtimeMessages();
         }
 
-        document.getElementById('logout-btn').addEventListener('click', () => window.location.reload());
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            window.location.reload();
+        });
 
+        // --- FRIENDS & DIRECT MESSAGING SYSTEM ---
         function getDMChannelID(username1, username2) {
             const sorted = [username1, username2].sort();
             return `dm_${sorted[0]}_${sorted[1]}`;
         }
 
-        // --- FRIENDS ENGINE WITH MULTI-FIELD FALLBACK RESOLUTION ---
         document.getElementById('add-friend-btn').addEventListener('click', async () => {
             const input = document.getElementById('friend-username-input');
             const targetUsername = input.value.trim();
             if (!targetUsername) return;
-            if (targetUsername.toLowerCase() === currentUser.username.toLowerCase()) return alert("You cannot add yourself.");
+            if (targetUsername === currentUser.username) return alert("You cannot add yourself.");
 
-            const { data: targetUser, error: findError } = await supabaseClient
+            const { data: targetUser } = await supabaseClient
                 .from('profiles')
-                .select('id, username')
-                .ilike('username', targetUsername)
+                .select('*')
+                .eq('username', targetUsername)
                 .maybeSingle();
 
-            if (findError || !targetUser) return alert(`User "${targetUsername}" not found.`);
+            if (!targetUser) return alert("User not found.");
 
-            // Query existing relations covering both ID and Username string patterns
-            const { data: existingRecords } = await supabaseClient
+            // Standardized chained OR filter for clean postgREST query execution
+            const { data: existing } = await supabaseClient
                 .from('friends')
                 .select('*')
-                .or(`user_id.eq.${currentUser.id},friend_id.eq.${currentUser.id},user_id.eq.${currentUser.username},friend_id.eq.${currentUser.username}`);
-
-            const existing = (existingRecords || []).find(f => 
-                (f.user_id === currentUser.id && f.friend_id === targetUser.id) ||
-                (f.user_id === targetUser.id && f.friend_id === currentUser.id) ||
-                (f.user_id === currentUser.username && f.friend_id === targetUser.username) ||
-                (f.user_id === targetUser.username && f.friend_id === currentUser.username)
-            );
+                .or(`user_id.eq.${currentUser.id},friend_id.eq.${currentUser.id}`)
+                .or(`user_id.eq.${targetUser.id},friend_id.eq.${targetUser.id}`)
+                .maybeSingle();
 
             if (existing) {
-                if (existing.status === 'accepted') return alert("You are already friends!");
-                
-                // If existing request was sent by the other party, auto-accept it!
-                const isOtherSender = (existing.user_id === targetUser.id || existing.user_id === targetUser.username);
-                if (isOtherSender) {
-                    const { error: updateErr } = await supabaseClient
+                if (existing.status === 'accepted') {
+                    alert("You are already friends!");
+                    return;
+                }
+                // Auto-accept if the target user had previously requested current user
+                if (existing.user_id === targetUser.id && existing.friend_id === currentUser.id && existing.status === 'pending') {
+                    const { error: updateError } = await supabaseClient
                         .from('friends')
                         .update({ status: 'accepted' })
                         .eq('id', existing.id);
 
-                    if (updateErr) alert("Error accepting request: " + updateErr.message);
-                    else {
-                        alert(`You and ${targetUser.username} are now friends!`);
+                    if (updateError) {
+                        alert("Error accepting request: " + updateError.message);
+                    } else {
+                        alert(`You and ${targetUsername} are now friends!`);
                         input.value = '';
                         loadFriends();
                     }
                     return;
                 }
-
-                return alert("A friend request is already pending.");
+                alert("A friend request is already pending.");
+                return;
             }
 
-            // Create request
-            const { error: insertError } = await supabaseClient.from('friends').insert([{
+            const { error } = await supabaseClient.from('friends').insert([{
                 user_id: currentUser.id,
                 friend_id: targetUser.id,
                 status: 'pending'
             }]);
 
-            if (insertError) alert("Error sending request: " + insertError.message);
+            if (error) alert("Error sending request: " + error.message);
             else {
-                alert(`Friend request sent to ${targetUser.username}!`);
+                alert(`Friend request sent to ${targetUsername}!`);
                 input.value = '';
                 loadFriends();
             }
@@ -535,145 +592,69 @@
         async function loadFriends() {
             if (!currentUser) return;
 
-            // Step 1: Fetch all friend records linked by UUID or Username
-            const { data: records, error: friendsError } = await supabaseClient
+            const { data: records } = await supabaseClient
                 .from('friends')
-                .select('*')
-                .or(`user_id.eq.${currentUser.id},friend_id.eq.${currentUser.id},user_id.eq.${currentUser.username},friend_id.eq.${currentUser.username}`);
-
-            if (friendsError) return console.error("Error fetching friends:", friendsError.message);
+                .select(`
+                    id, user_id, friend_id, status,
+                    user_profile:profiles!user_id(id, username, avatar_url),
+                    friend_profile:profiles!friend_id(id, username, avatar_url)
+                `)
+                .or(`user_id.eq.${currentUser.id},friend_id.eq.${currentUser.id}`);
 
             userFriends.clear();
             const friendsListEl = document.getElementById('friends-list');
             const dmListEl = document.getElementById('dm-list');
-            const callSelectEl = document.getElementById('target-call-user');
-
             friendsListEl.innerHTML = '';
             dmListEl.innerHTML = '';
-            callSelectEl.innerHTML = '<option value="">Select a friend to call...</option>';
-
-            if (!records || records.length === 0) {
-                dmListEl.innerHTML = '<p id="no-dms-msg" class="text-[11px] text-slate-500 italic px-2">No active DMs with friends</p>';
-                friendsListEl.innerHTML = '<p class="text-[11px] text-slate-500 italic px-1">No friends or pending requests</p>';
-                return;
-            }
-
-            // Step 2: Fetch profiles for all connected entities
-            const foreignKeys = records.map(r => {
-                const isUser = (r.user_id === currentUser.id || r.user_id === currentUser.username);
-                return isUser ? r.friend_id : r.user_id;
-            });
-            const uniqueKeys = [...new Set(foreignKeys)];
-
-            const { data: profiles } = await supabaseClient
-                .from('profiles')
-                .select('id, username, avatar_url')
-                .or(`id.in.(${uniqueKeys.filter(k => k.length === 36).map(k=>`"${k}"`).join(',') || '"00000000-0000-0000-0000-000000000000"'}),username.in.(${uniqueKeys.map(k=>`"${k}"`).join(',')})`);
-
-            const profileMap = new Map();
-            (profiles || []).forEach(p => {
-                profileMap.set(p.id, p);
-                profileMap.set(p.username, p);
-            });
 
             let hasDMs = false;
-            const acceptedList = [];
-            const incomingPendingList = [];
-            const outgoingPendingList = [];
 
-            records.forEach(req => {
-                const isSender = (req.user_id === currentUser.id || req.user_id === currentUser.username);
-                const otherKey = isSender ? req.friend_id : req.user_id;
-                
-                // Resolve profile object or generate fallback name string
-                let otherUser = profileMap.get(otherKey);
-                if (!otherUser) otherUser = { id: otherKey, username: otherKey, avatar_url: null };
+            if (records) {
+                records.forEach(req => {
+                    const isSender = req.user_id === currentUser.id;
+                    const otherUser = isSender ? req.friend_profile : req.user_profile;
 
-                if (otherUser.avatar_url) userAvatarCache.set(otherUser.username, otherUser.avatar_url);
+                    if (!otherUser) return;
+                    if (otherUser.avatar_url) userAvatarCache.set(otherUser.username, otherUser.avatar_url);
 
-                if (req.status === 'accepted') {
-                    userFriends.add(otherUser.username);
-                    acceptedList.push({ req, otherUser });
-                } else if (req.status === 'pending') {
-                    if (isSender) outgoingPendingList.push({ req, otherUser });
-                    else incomingPendingList.push({ req, otherUser });
-                }
-            });
-
-            // Render Pending Incoming Requests
-            if (incomingPendingList.length > 0) {
-                const header = document.createElement('div');
-                header.className = "text-[10px] font-bold text-amber-400 uppercase tracking-wider mt-1 mb-1";
-                header.textContent = `🔔 Pending Requests (${incomingPendingList.length})`;
-                friendsListEl.appendChild(header);
-
-                incomingPendingList.forEach(({ req, otherUser }) => {
-                    const item = document.createElement('div');
-                    item.className = "flex items-center justify-between text-xs bg-amber-950/40 border border-amber-500/40 p-2 rounded-lg gap-1 animate-pulse";
-                    item.innerHTML = `
-                        <span class="font-bold text-amber-200 truncate">${escapeHTML(otherUser.username)}</span>
-                        <div class="flex gap-1 shrink-0">
-                            <button onclick="window.acceptFriend('${req.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold px-2 py-1 rounded transition-colors cursor-pointer">Accept</button>
-                            <button onclick="window.removeFriend('${req.id}')" class="bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold px-2 py-1 rounded transition-colors cursor-pointer">Decline</button>
-                        </div>
-                    `;
-                    friendsListEl.appendChild(item);
-                });
-            }
-
-            // Render Confirmed Friends
-            if (acceptedList.length > 0) {
-                hasDMs = true;
-                const header = document.createElement('div');
-                header.className = "text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-2 mb-1";
-                header.textContent = `Friends (${acceptedList.length})`;
-                friendsListEl.appendChild(header);
-
-                acceptedList.forEach(({ req, otherUser }) => {
                     const item = document.createElement('div');
                     item.className = "flex items-center justify-between text-xs bg-slate-950 p-2 rounded-lg border border-slate-800 gap-1";
-                    item.innerHTML = `
-                        <div class="flex items-center gap-1.5 truncate">
-                            <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block shrink-0"></span>
+
+                    if (req.status === 'accepted') {
+                        userFriends.add(otherUser.username);
+                        hasDMs = true;
+
+                        item.innerHTML = `
                             <span class="font-semibold text-slate-300 truncate">${escapeHTML(otherUser.username)}</span>
-                        </div>
-                        <div class="flex gap-1 shrink-0">
-                            <button onclick="window.openDM('${escapeHTML(otherUser.username)}')" class="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 text-[10px] px-1.5 py-0.5 rounded transition-colors cursor-pointer">DM</button>
-                            <button onclick="window.startVideoCall('${escapeHTML(otherUser.username)}')" class="bg-emerald-600/30 hover:bg-emerald-600 text-emerald-200 text-[10px] px-1.5 py-0.5 rounded transition-colors cursor-pointer">📹</button>
-                            <button onclick="window.removeFriend('${req.id}')" class="text-rose-400 hover:text-rose-300 text-[10px] px-1 cursor-pointer" title="Remove Friend">✕</button>
-                        </div>
-                    `;
-                    friendsListEl.appendChild(item);
+                            <div class="flex gap-1 shrink-0">
+                                <button onclick="openDM('${escapeHTML(otherUser.username)}')" class="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 text-[10px] px-2 py-0.5 rounded transition-colors cursor-pointer">DM</button>
+                                <button onclick="removeFriend('${req.id}')" class="text-rose-400 hover:text-rose-300 text-[10px] px-1 cursor-pointer">✕</button>
+                            </div>
+                        `;
 
-                    const dmBtn = document.createElement('button');
-                    const channelId = getDMChannelID(currentUser.username, otherUser.username);
-                    dmBtn.dataset.channel = channelId;
-                    dmBtn.className = "channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors flex items-center gap-2";
-                    dmBtn.innerHTML = `💬 ${escapeHTML(otherUser.username)}`;
-                    dmBtn.onclick = () => openDM(otherUser.username);
-                    dmListEl.appendChild(dmBtn);
+                        const dmBtn = document.createElement('button');
+                        const channelId = getDMChannelID(currentUser.username, otherUser.username);
+                        dmBtn.dataset.channel = channelId;
+                        dmBtn.className = "channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors flex items-center gap-2";
+                        dmBtn.innerHTML = `💬 ${escapeHTML(otherUser.username)}`;
+                        dmBtn.onclick = () => openDM(otherUser.username);
+                        dmListEl.appendChild(dmBtn);
 
-                    const opt = document.createElement('option');
-                    opt.value = otherUser.username;
-                    opt.textContent = otherUser.username;
-                    callSelectEl.appendChild(opt);
-                });
-            }
-
-            // Render Sent Outgoing Requests
-            if (outgoingPendingList.length > 0) {
-                const header = document.createElement('div');
-                header.className = "text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-2 mb-1";
-                header.textContent = `Sent Requests (${outgoingPendingList.length})`;
-                friendsListEl.appendChild(header);
-
-                outgoingPendingList.forEach(({ req, otherUser }) => {
-                    const item = document.createElement('div');
-                    item.className = "flex items-center justify-between text-xs bg-slate-950/60 p-2 rounded-lg border border-slate-800/80 gap-1";
-                    item.innerHTML = `
-                        <span class="text-slate-400 italic truncate">${escapeHTML(otherUser.username)}</span>
-                        <button onclick="window.removeFriend('${req.id}')" class="text-rose-400 hover:text-rose-300 text-[10px] px-1 cursor-pointer" title="Cancel Request">✕ Cancel</button>
-                    `;
+                    } else if (req.status === 'pending') {
+                        if (isSender) {
+                            item.innerHTML = `
+                                <span class="text-slate-400 italic truncate">${escapeHTML(otherUser.username)} (Pending)</span>
+                            `;
+                        } else {
+                            item.innerHTML = `
+                                <span class="font-semibold text-slate-200 truncate">${escapeHTML(otherUser.username)}</span>
+                                <div class="flex gap-1 shrink-0">
+                                    <button onclick="acceptFriend('${req.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded transition-colors cursor-pointer">Accept</button>
+                                    <button onclick="removeFriend('${req.id}')" class="bg-rose-600 hover:bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded transition-colors cursor-pointer">Decline</button>
+                                </div>
+                            `;
+                        }
+                    }
                     friendsListEl.appendChild(item);
                 });
             }
@@ -684,19 +665,19 @@
         }
 
         async function acceptFriend(id) {
-            const { error } = await supabaseClient.from('friends').update({ status: 'accepted' }).eq('id', id);
-            if (error) alert("Could not accept request: " + error.message);
+            await supabaseClient.from('friends').update({ status: 'accepted' }).eq('id', id);
             loadFriends();
         }
 
         async function removeFriend(id) {
-            const { error } = await supabaseClient.from('friends').delete().eq('id', id);
-            if (error) alert("Could not remove record: " + error.message);
+            await supabaseClient.from('friends').delete().eq('id', id);
             loadFriends();
         }
 
         function openDM(targetUsername) {
-            if (!userFriends.has(targetUsername)) return alert("You can only DM users on your friends list.");
+            if (!userFriends.has(targetUsername)) {
+                return alert("You can only DM users who are on your friends list.");
+            }
             const channelId = getDMChannelID(currentUser.username, targetUsername);
             
             document.querySelectorAll('.channel-btn').forEach(b => {
@@ -704,7 +685,9 @@
             });
 
             const btn = document.querySelector(`button[data-channel="${channelId}"]`);
-            if (btn) btn.className = "channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 flex items-center gap-2";
+            if (btn) {
+                btn.className = "channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 flex items-center gap-2";
+            }
 
             activeChannel = channelId;
             document.getElementById('active-channel-title').textContent = `@ ${targetUsername}`;
@@ -729,6 +712,7 @@
                 .subscribe();
         }
 
+        // --- FILE SELECTION ---
         mediaFileInput.addEventListener('change', (e) => {
             if (e.target.files && e.target.files[0]) {
                 selectedFile = e.target.files[0];
@@ -743,6 +727,7 @@
             filePreview.classList.add('hidden');
         });
 
+        // --- UPDATES FEED & SYSTEM LOGS ---
         function addSystemUpdate(text) {
             const item = document.createElement('div');
             item.className = "p-3 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between text-xs text-slate-300";
@@ -756,6 +741,7 @@
             liveUpdatesList.prepend(item);
         }
 
+        // --- CHANNELS SWITCHING ---
         function selectChannel(btn, channelId, displayTitle) {
             document.querySelectorAll('.channel-btn').forEach(b => {
                 b.className = "channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors flex items-center gap-2";
@@ -781,17 +767,20 @@
         }
 
         document.querySelectorAll('#channel-list .channel-btn').forEach(btn => {
-            btn.addEventListener('click', () => selectChannel(btn, btn.dataset.channel, btn.textContent.trim()));
+            btn.addEventListener('click', () => {
+                selectChannel(btn, btn.dataset.channel, btn.textContent.trim());
+            });
         });
 
         async function loadChannelMessages() {
             if (activeChannel === 'updates') return;
 
             if (activeChannel.startsWith('dm_')) {
-                const parts = activeChannel.replace('dm_', '').split('_');
-                const otherUsername = parts.find(u => u !== currentUser.username);
-                if (otherUsername && !userFriends.has(otherUsername)) {
-                    chatBox.innerHTML = `<div class="p-4 text-center text-rose-400 text-xs">You can only direct message users on your friends list.</div>`;
+                const otherUsername = Array.from(userFriends).find(friend => 
+                    activeChannel === getDMChannelID(currentUser.username, friend)
+                );
+                if (!otherUsername) {
+                    chatBox.innerHTML = `<div class="p-4 text-center text-rose-400 text-xs">You can only direct message users who are on your friends list.</div>`;
                     return;
                 }
             }
@@ -816,11 +805,10 @@
         function startFastPolling() {
             if (fastPollingInterval) clearInterval(fastPollingInterval);
             fastPollingInterval = setInterval(() => {
-                if (currentUser) {
-                    if (activeChannel && activeChannel !== 'updates') loadChannelMessages();
-                    loadFriends();
+                if (currentUser && activeChannel && activeChannel !== 'updates') {
+                    loadChannelMessages();
                 }
-            }, 1200);
+            }, 500);
         }
 
         async function appendMessageUI(msg) {
@@ -835,12 +823,15 @@
                     <div class="text-[11px] text-indigo-300 bg-indigo-950/40 border-l-2 border-indigo-500 pl-2 py-1 rounded-r mb-2.5 truncate">
                         Replying to <b class="text-indigo-400">@${escapeHTML(msg.reply_to_user || 'User')}</b>: "<span class="italic text-slate-300">${escapeHTML(msg.reply_to_text || 'Media')}</span>"
                     </div>`;
+            } else if (msg.reply_to_id) {
+                replyHeader = `<div class="text-[10px] text-indigo-400 font-mono mb-1">Replying to message #${msg.reply_to_id}</div>`;
             }
-
+            
             let mediaContent = '';
             if (msg.media_url) {
                 const url = msg.media_url.toLowerCase();
-                if (url.match(/\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i) || url.startsWith('data:image/')) {
+
+                if (url.match(/\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i)) {
                     mediaContent = `<div class="mt-2"><img src="${escapeHTML(msg.media_url)}" class="max-h-60 rounded-lg border border-slate-800 object-cover max-w-full" loading="lazy"></div>`;
                 } else if (url.match(/\.(mp4|webm|ogg|mov)($|\?)/i)) {
                     mediaContent = `<div class="mt-2"><video src="${escapeHTML(msg.media_url)}" controls class="max-h-60 w-full rounded-lg border border-slate-800"></video></div>`;
@@ -858,7 +849,7 @@
                     const aspectClass = item.isShort ? "w-full max-w-[280px] aspect-[9/16]" : "w-full max-w-xl aspect-video";
                     ytEmbedsHtml += `
                         <div class="mt-2.5 rounded-xl overflow-hidden border border-slate-800 bg-black ${aspectClass}">
-                            <iframe class="w-full h-full" src="https://www.youtube.com/embed/${item.videoId}" title="YouTube player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                            <iframe class="w-full h-full" src="https://www.youtube.com/embed/${item.videoId}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                         </div>`;
                 });
             }
@@ -886,14 +877,18 @@
         }
 
         function setReplyTarget(id, username, text) {
-            activeReplyId = id; activeReplyUser = username; activeReplyText = text;
+            activeReplyId = id;
+            activeReplyUser = username;
+            activeReplyText = text;
             document.getElementById('reply-target-user').textContent = username;
             document.getElementById('reply-target-text').textContent = text;
             replyPreview.classList.remove('hidden');
         }
 
         document.getElementById('cancel-reply-btn').addEventListener('click', () => {
-            activeReplyId = null; activeReplyUser = null; activeReplyText = null;
+            activeReplyId = null;
+            activeReplyUser = null;
+            activeReplyText = null;
             replyPreview.classList.add('hidden');
         });
 
@@ -903,28 +898,40 @@
             if ((!text && !selectedFile) || !currentUser) return;
 
             if (activeChannel.startsWith('dm_')) {
-                const parts = activeChannel.replace('dm_', '').split('_');
-                const otherUsername = parts.find(u => u !== currentUser.username);
-                if (otherUsername && !userFriends.has(otherUsername)) {
+                const otherUsername = Array.from(userFriends).find(friend => 
+                    activeChannel === getDMChannelID(currentUser.username, friend)
+                );
+                if (!otherUsername) {
                     return alert("Cannot send message. You must be friends to exchange DMs.");
                 }
             }
 
             const sendBtn = document.getElementById('send-btn');
-            sendBtn.disabled = true; sendBtn.textContent = '...';
+            sendBtn.disabled = true;
+            sendBtn.textContent = '...';
 
             let mediaUrl = null;
+
             if (selectedFile) {
                 try {
-                    const reader = new FileReader();
-                    mediaUrl = await new Promise((resolve, reject) => {
-                        reader.onload = (evt) => resolve(evt.target.result);
-                        reader.onerror = (err) => reject(err);
-                        reader.readAsDataURL(selectedFile);
-                    });
+                    const fileExt = selectedFile.name.split('.').pop();
+                    const filePath = `${currentUser.username}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+                    const { data: uploadData, error: uploadError } = await supabaseClient.storage
+                        .from('chat-media')
+                        .upload(filePath, selectedFile);
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: urlData } = supabaseClient.storage
+                        .from('chat-media')
+                        .getPublicUrl(filePath);
+
+                    mediaUrl = urlData.publicUrl;
                 } catch (err) {
-                    alert("Media reading failed: " + err.message);
-                    sendBtn.disabled = false; sendBtn.textContent = 'Send';
+                    alert("Media upload failed: " + err.message);
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = 'Send';
                     return;
                 }
             }
@@ -940,14 +947,20 @@
                 media_url: mediaUrl
             };
 
-            msgInput.value = ''; selectedFile = null; mediaFileInput.value = '';
-            filePreview.classList.add('hidden'); activeReplyId = null; activeReplyUser = null; activeReplyText = null;
+            msgInput.value = '';
+            selectedFile = null;
+            mediaFileInput.value = '';
+            filePreview.classList.add('hidden');
+            activeReplyId = null;
+            activeReplyUser = null;
+            activeReplyText = null;
             replyPreview.classList.add('hidden');
 
             const { error } = await supabaseClient.from('chat_messages').insert([payload]);
             if (error) alert("Error sending message: " + error.message);
 
-            sendBtn.disabled = false; sendBtn.textContent = 'Send';
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send';
             loadChannelMessages();
         });
 
@@ -959,13 +972,17 @@
                         knownMessageIds.add(payload.new.id);
                         await appendMessageUI(payload.new);
                     }
-                    if (payload.new.username !== currentUser?.username) triggerUnreadNotification();
+
+                    if (payload.new.username !== currentUser?.username) {
+                        triggerUnreadNotification();
+                    }
                 }).subscribe();
         }
 
         // --- WEBRTC CALLING ---
         function listenToPersonalSignaling() {
             personalSignalingChannel = supabaseClient.channel(`user-signal:${currentUser.username}`);
+            
             personalSignalingChannel
                 .on('broadcast', { event: 'signal' }, async ({ payload }) => {
                     if (payload.type === 'offer') await handleIncomingOffer(payload);
@@ -976,46 +993,49 @@
                 .subscribe();
         }
 
-        async function startVideoCall(targetUsername) {
-            if (!targetUsername) targetUsername = document.getElementById('target-call-user').value.trim();
-            if (!targetUsername) return alert("Please select a friend to call.");
-            if (targetUsername.toLowerCase() === currentUser.username.toLowerCase()) return alert("You cannot call yourself.");
-            if (!userFriends.has(targetUsername)) return alert("Video calling is restricted to confirmed friends only.");
+        document.getElementById('start-call-btn').addEventListener('click', async () => {
+            const targetUsername = document.getElementById('target-call-user').value.trim();
+            if (!targetUsername) return alert("Please enter target username.");
+            if (targetUsername === currentUser.username) return alert("You cannot call yourself.");
 
             activeCallTarget = targetUsername;
-            videoCallModal.classList.remove('hidden');
+            document.getElementById('call-bar').classList.remove('hidden');
             document.getElementById('call-status').textContent = `Calling ${targetUsername}...`;
 
-            addSystemUpdate(`Initiated video call to <b>${escapeHTML(targetUsername)}</b>`);
+            addSystemUpdate(`Initiated voice call to <b>${escapeHTML(targetUsername)}</b>`);
             playRingtone();
 
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-                document.getElementById('local-video').srcObject = localStream;
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
                 setupPeerConnection(targetUsername);
+
                 localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
 
-                sendSignalToUser(targetUsername, { type: 'offer', offer: offer, callerUsername: currentUser.username });
+                sendSignalToUser(targetUsername, {
+                    type: 'offer',
+                    offer: offer,
+                    callerUsername: currentUser.username
+                });
+
             } catch (err) {
-                alert("Camera/Microphone error: " + err.message);
+                alert("Microphone error: " + err.message);
                 cleanUpCallState();
             }
-        }
-
-        document.getElementById('start-call-btn').addEventListener('click', () => startVideoCall());
-        window.startVideoCall = startVideoCall;
+        });
 
         async function handleIncomingOffer(payload) {
-            if (dndToggle.checked || !userFriends.has(payload.callerUsername)) {
+            if (dndToggle.checked) {
                 sendSignalToUser(payload.callerUsername, { type: 'end-call' });
                 return;
             }
+
             pendingOfferPayload = payload;
             incomingCallerName.textContent = payload.callerUsername;
             incomingCallModal.classList.remove('hidden');
+
             addSystemUpdate(`Incoming call from <b>${escapeHTML(payload.callerUsername)}</b>`);
             playRingtone();
             triggerUnreadNotification();
@@ -1029,14 +1049,13 @@
             const payload = pendingOfferPayload;
 
             activeCallTarget = payload.callerUsername;
-            videoCallModal.classList.remove('hidden');
-            document.getElementById('call-status').textContent = `In Call with ${payload.callerUsername}`;
+            document.getElementById('call-bar').classList.remove('hidden');
+            document.getElementById('call-status').textContent = `In call with ${payload.callerUsername}`;
 
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-                document.getElementById('local-video').srcObject = localStream;
-
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
                 setupPeerConnection(payload.callerUsername);
+
                 localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.offer));
@@ -1049,9 +1068,13 @@
                 const answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
 
-                sendSignalToUser(payload.callerUsername, { type: 'answer', answer: answer });
+                sendSignalToUser(payload.callerUsername, {
+                    type: 'answer',
+                    answer: answer
+                });
+
             } catch (err) {
-                alert("Video call setup failed: " + err.message);
+                alert("Call setup failed: " + err.message);
                 cleanUpCallState();
             }
         });
@@ -1059,15 +1082,18 @@
         declineCallBtn.addEventListener('click', () => {
             incomingCallModal.classList.add('hidden');
             stopRingtone();
-            if (pendingOfferPayload) sendSignalToUser(pendingOfferPayload.callerUsername, { type: 'end-call' });
+            if (pendingOfferPayload) {
+                sendSignalToUser(pendingOfferPayload.callerUsername, { type: 'end-call' });
+            }
             pendingOfferPayload = null;
         });
 
         async function handleIncomingAnswer(payload) {
             stopRingtone();
             if (!peerConnection) return;
+
             await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.answer));
-            document.getElementById('call-status').textContent = `In Video Call with ${activeCallTarget}`;
+            document.getElementById('call-status').textContent = `In Call with ${activeCallTarget}`;
 
             while (iceCandidateQueue.length > 0) {
                 const cand = iceCandidateQueue.shift();
@@ -1086,57 +1112,56 @@
 
         function setupPeerConnection(targetUsername) {
             peerConnection = new RTCPeerConnection(rtcConfig);
+
             peerConnection.onicecandidate = (event) => {
-                if (event.candidate) sendSignalToUser(targetUsername, { type: 'ice-candidate', candidate: event.candidate });
+                if (event.candidate) {
+                    sendSignalToUser(targetUsername, {
+                        type: 'ice-candidate',
+                        candidate: event.candidate
+                    });
+                }
             };
+
             peerConnection.ontrack = (event) => {
                 stopRingtone();
-                const remoteVideo = document.getElementById('remote-video');
-                if (remoteVideo.srcObject !== event.streams[0]) remoteVideo.srcObject = event.streams[0];
+                const remoteAudio = document.getElementById('remote-audio');
+                if (remoteAudio.srcObject !== event.streams[0]) {
+                    remoteAudio.srcObject = event.streams[0];
+                    remoteAudio.play().catch(e => console.warn("Autoplay remote track:", e));
+                }
             };
         }
 
         function sendSignalToUser(targetUsername, payload) {
-            supabaseClient.channel(`user-signal:${targetUsername}`).send({ type: 'broadcast', event: 'signal', payload: payload });
+            supabaseClient.channel(`user-signal:${targetUsername}`).send({
+                type: 'broadcast',
+                event: 'signal',
+                payload: payload
+            });
         }
 
-        document.getElementById('toggle-audio-btn').addEventListener('click', () => {
-            if (localStream) {
-                const audioTrack = localStream.getAudioTracks()[0];
-                if (audioTrack) {
-                    isAudioMuted = !isAudioMuted; audioTrack.enabled = !isAudioMuted;
-                    document.getElementById('toggle-audio-btn').textContent = isAudioMuted ? '🔇 Unmute' : '🎙️ Mute';
-                }
-            }
-        });
-
-        document.getElementById('toggle-video-btn').addEventListener('click', () => {
-            if (localStream) {
-                const videoTrack = localStream.getVideoTracks()[0];
-                if (videoTrack) {
-                    isVideoMuted = !isVideoMuted; videoTrack.enabled = !isVideoMuted;
-                    document.getElementById('toggle-video-btn').textContent = isVideoMuted ? '📹 Cam On' : '📹 Cam Off';
-                }
-            }
-        });
-
         document.getElementById('end-call-btn').addEventListener('click', () => {
-            if (activeCallTarget) sendSignalToUser(activeCallTarget, { type: 'end-call' });
+            if (activeCallTarget) {
+                sendSignalToUser(activeCallTarget, { type: 'end-call' });
+            }
             cleanUpCallState();
         });
 
         function cleanUpCallState() {
             stopRingtone();
             incomingCallModal.classList.add('hidden');
-            videoCallModal.classList.add('hidden');
-            if (localStream) { localStream.getTracks().forEach(track => track.stop()); localStream = null; }
-            if (peerConnection) { peerConnection.close(); peerConnection = null; }
-            document.getElementById('local-video').srcObject = null;
-            document.getElementById('remote-video').srcObject = null;
-            iceCandidateQueue = []; activeCallTarget = null; pendingOfferPayload = null;
-            isAudioMuted = false; isVideoMuted = false;
-            document.getElementById('toggle-audio-btn').textContent = '🎙️ Mute';
-            document.getElementById('toggle-video-btn').textContent = '📹 Cam Off';
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            iceCandidateQueue = [];
+            activeCallTarget = null;
+            pendingOfferPayload = null;
+            document.getElementById('call-bar').classList.add('hidden');
         }
 
         function escapeHTML(str) { 
