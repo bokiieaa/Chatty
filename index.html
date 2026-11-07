@@ -543,7 +543,7 @@
             <div class="flex items-center justify-between">
                 <span class="font-bold text-sm text-slate-200 flex items-center gap-2">
                     <span id="self-standing-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
-                    Mesh Chat <span class="text-[10px] text-indigo-400 font-mono">v3.0</span>
+                    Mesh Chat <span class="text-[10px] text-indigo-400 font-mono">v3.5</span>
                 </span>
                 <div class="flex gap-1">
                     <button id="open-admin-panel-btn" class="hidden text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded transition-colors cursor-pointer">⚡ Panel</button>
@@ -553,7 +553,7 @@
 
             <div>
                 <div class="flex items-center justify-between mb-1">
-                    <h2 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Servers / Channels</h2>
+                    <h2 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Private Channels</h2>
                     <button onclick="createNewChannel()" class="text-[10px] text-indigo-400 hover:underline cursor-pointer">+ New</button>
                 </div>
                 <nav class="space-y-1" id="channel-list">
@@ -816,6 +816,31 @@
         let contextChannelName = null;
         let activeReportTarget = null;
 
+        function saveUserJoinedChannels() {
+            if (!currentUser) return;
+            const arr = Array.from(customChannelsSet).map(id => ({
+                id,
+                name: channelNamesMap.get(id) || `# ${id}`
+            }));
+            localStorage.setItem(`mesh_user_channels_${currentUser.username}`, JSON.stringify(arr));
+        }
+
+        function loadUserJoinedChannels() {
+            if (!currentUser) return;
+            customChannelsSet = new Set(['general', 'announcements']);
+            channelNamesMap = new Map([['general', '# general'], ['announcements', '📢 announcements']]);
+            try {
+                const raw = localStorage.getItem(`mesh_user_channels_${currentUser.username}`);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    parsed.forEach(ch => {
+                        customChannelsSet.add(ch.id);
+                        channelNamesMap.set(ch.id, ch.name);
+                    });
+                }
+            } catch(e) {}
+        }
+
         function checkInviteLinkInUrl() {
             let rawInvite = null;
             const searchParams = new URLSearchParams(window.location.search);
@@ -844,6 +869,7 @@
                     }
                     customChannelsSet.add(cid);
                     channelNamesMap.set(cid, cname);
+                    saveUserJoinedChannels();
                     activeChannel = cid;
                 } catch(e) {}
 
@@ -1297,7 +1323,7 @@
                 user_id: currentUser.id,
                 username: currentUser.username,
                 channel_id: dmChannelId,
-                message: `Hey @${targetUsername}! I'm inviting you to join ${targetChanName}.\n${invitePayloadStr}`
+                message: `Hey @${targetUsername}! I'm inviting you to join private channel ${targetChanName}.\n${invitePayloadStr}`
             }]);
 
             broadcastSignaling.postMessage({
@@ -1311,7 +1337,7 @@
             if (error) {
                 showToast("Invite sent via signal!", "success");
             } else {
-                showToast(`Channel invite sent to @${targetUsername}!`, "success");
+                showToast(`Private channel invite sent to @${targetUsername}!`, "success");
             }
 
             document.getElementById('invite-modal').classList.add('hidden');
@@ -1334,12 +1360,13 @@
             document.execCommand('copy');
             document.body.removeChild(dummy);
 
-            showToast("Channel invite link copied to clipboard!", "success");
+            showToast("Private invite link copied to clipboard!", "success");
         }
 
         function joinChannelById(cid, cname) {
             customChannelsSet.add(cid);
             channelNamesMap.set(cid, cname);
+            saveUserJoinedChannels();
             activeChannel = cid;
 
             saveLastReadTimestamp(cid);
@@ -1349,7 +1376,7 @@
             updateChannelHeaderControls();
             checkAnnouncementsPermissions();
             loadChannelMessages();
-            showToast(`Joined channel ${cname}!`, "success");
+            showToast(`Joined private channel ${cname}!`, "success");
         }
 
         function checkAnnouncementsPermissions() {
@@ -1647,8 +1674,9 @@
             } else if (data.type === 'channel_invite' && currentUser && data.target === currentUser.username) {
                 customChannelsSet.add(data.channelId);
                 channelNamesMap.set(data.channelId, data.channelName);
+                saveUserJoinedChannels();
                 loadChannels();
-                showToast(`📨 Received invite to join ${data.channelName}`, "success");
+                showToast(`📨 Received private invite to ${data.channelName}`, "success");
             }
         };
 
@@ -1959,14 +1987,14 @@
                 inviteCardHTML = `
                     <div class="mt-2.5 p-3.5 rounded-xl bg-gradient-to-r from-indigo-900/40 to-purple-900/40 border border-indigo-500/40 space-y-2">
                         <div class="flex items-center gap-2">
-                            <span class="text-base">📢</span>
-                            <span class="text-xs font-bold text-indigo-300">Channel Invitation</span>
+                            <span class="text-base">🔒</span>
+                            <span class="text-xs font-bold text-indigo-300">Private Channel Invitation</span>
                         </div>
                         <p class="text-xs text-slate-200">
                             You have been invited to join <b class="text-indigo-400">${escapeHTML(invChanName)}</b>
                         </p>
                         <button onclick="joinChannelById('${escapeHTML(invChanId)}', '${escapeHTML(invChanName)}')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg shadow-lg shadow-indigo-600/30 transition-all cursor-pointer flex items-center gap-1.5">
-                            <span>🚀</span> Join Channel
+                            <span>🚀</span> Accept & Join Private Channel
                         </button>
                     </div>
                 `;
@@ -2153,6 +2181,7 @@
             updateUserDisplayUI();
             authModal.classList.add('hidden');
 
+            loadUserJoinedChannels();
             setupPresenceRealtime();
             listenToPersonalSignaling();
             loadFriends();
@@ -2312,17 +2341,9 @@
         }
 
         async function loadChannels() {
-            const { data: channels } = await supabaseClient.from('channels').select('*');
             const channelList = document.getElementById('channel-list');
-            
-            if (channels) {
-                channels.forEach(chan => {
-                    customChannelsSet.add(chan.id);
-                    channelNamesMap.set(chan.id, chan.name);
-                });
-            }
-
             channelList.innerHTML = '';
+
             customChannelsSet.forEach(cid => {
                 const cname = channelNamesMap.get(cid) || `# ${cid}`;
                 const btn = document.createElement('button');
@@ -2347,8 +2368,10 @@
                     }
                 }
 
+                const isPrivateIcon = (cid !== 'general' && cid !== 'announcements') ? '<span class="text-[10px] opacity-60">🔒</span> ' : '';
+
                 btn.className = `channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${textClass} transition-colors flex items-center justify-between cursor-pointer gap-2`;
-                btn.innerHTML = `<span class="truncate">${cname}</span> ${badgeHTML}`;
+                btn.innerHTML = `<span class="truncate">${isPrivateIcon}${cname}</span> ${badgeHTML}`;
                 channelList.appendChild(btn);
             });
 
@@ -2367,15 +2390,14 @@
         }
 
         async function createNewChannel() {
-            const name = prompt("Enter new channel name:");
+            const name = prompt("Enter new private channel name:");
             if (!name) return;
             const channelId = 'chan_' + Math.random().toString(36).substring(2, 9);
             const formattedName = `# ${name}`;
 
-            const { error } = await supabaseClient.from('channels').insert([{ id: channelId, name: formattedName, creator_id: currentUser.id }]);
-            if (!error) {
-                joinChannelById(channelId, formattedName);
-            }
+            await supabaseClient.from('channels').insert([{ id: channelId, name: formattedName, creator_id: currentUser.id }]);
+            joinChannelById(channelId, formattedName);
+            showToast(`Private channel ${formattedName} created! Use Invite to add friends.`, "success");
         }
 
         document.getElementById('channel-list').addEventListener('click', (e) => {
@@ -2614,7 +2636,7 @@
                             knownMessageIds.add(msg.id);
                             appendMessageUI(msg);
                         }
-                    } else {
+                    } else if (customChannelsSet.has(msg.channel_id) || msg.channel_id.startsWith('dm_')) {
                         unreadCounts[msg.channel_id] = (unreadCounts[msg.channel_id] || 0) + 1;
                         if (!unreadFirstMsgId[msg.channel_id]) unreadFirstMsgId[msg.channel_id] = msg.id;
                         loadChannels();
