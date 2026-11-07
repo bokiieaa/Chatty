@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mesh Chat - Video Edition</title>
+    <title>Mesh Chat</title>
     <link id="favicon" rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'><path d='M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z'/></svg>">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -788,6 +788,43 @@
 
         // Cross-Tab Signaling BroadcastChannel Fallback
         const broadcastSignaling = new BroadcastChannel('mesh_chat_signaling');
+
+        // Session Lock BroadcastChannel for Single Account Enforcement Across Tabs
+        const sessionLockChannel = new BroadcastChannel('mesh_session_lock');
+
+        sessionLockChannel.onmessage = (event) => {
+            const data = event.data;
+            if (!data) return;
+
+            if (data.type === 'LOGIN') {
+                if (currentUser && currentUser.username !== data.user) {
+                    performLogout(false);
+                    showToast(`Signed out because a new account (@${data.user}) was logged into in another tab`, "error");
+                }
+            } else if (data.type === 'LOGOUT') {
+                if (currentUser) {
+                    performLogout(false);
+                    showToast("Signed out from another tab", "info");
+                }
+            }
+        };
+
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'mesh_chat_session') {
+                if (!e.newValue && currentUser) {
+                    performLogout(false);
+                    showToast("Signed out from another tab", "info");
+                } else if (e.newValue && currentUser) {
+                    try {
+                        const parsed = JSON.parse(e.newValue);
+                        if (parsed.username && parsed.username !== currentUser.username) {
+                            performLogout(false);
+                            showToast(`Signed out because a new account (@${parsed.username}) was logged into in another tab`, "error");
+                        }
+                    } catch(err) {}
+                }
+            }
+        });
 
         // WebRTC Config
         const rtcConfig = {
@@ -1725,9 +1762,25 @@
             return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        function initAuthenticatedSession(profile) {
+        function initAuthenticatedSession(profile, isNewLogin = true) {
             currentUser = profile;
             manualStanding = profile.standing || 'online';
+
+            // Store session in localStorage for session persistence
+            localStorage.setItem('mesh_chat_session', JSON.stringify({
+                id: profile.id,
+                username: profile.username,
+                loginTime: Date.now()
+            }));
+
+            if (isNewLogin) {
+                sessionLockChannel.postMessage({
+                    type: 'LOGIN',
+                    user: profile.username,
+                    userId: profile.id
+                });
+            }
+
             updateUserDisplayUI();
             authModal.classList.add('hidden');
 
@@ -1744,7 +1797,66 @@
             }
         }
 
-        document.getElementById('logout-btn').addEventListener('click', () => window.location.reload());
+        function performLogout(notifyOtherTabs = true) {
+            if (isCallActive) {
+                endActiveVideoCall(true);
+            }
+
+            if (presenceChannel) {
+                try { supabaseClient.removeChannel(presenceChannel); } catch(e) {}
+                presenceChannel = null;
+            }
+            if (personalSignalingChannel) {
+                try { supabaseClient.removeChannel(personalSignalingChannel); } catch(e) {}
+                personalSignalingChannel = null;
+            }
+            if (fastPollingInterval) {
+                clearInterval(fastPollingInterval);
+                fastPollingInterval = null;
+            }
+
+            currentUser = null;
+            localStorage.removeItem('mesh_chat_session');
+
+            if (notifyOtherTabs) {
+                sessionLockChannel.postMessage({ type: 'LOGOUT' });
+            }
+
+            document.getElementById('open-admin-panel-btn').classList.add('hidden');
+            authModal.classList.remove('hidden');
+            document.getElementById('auth-username').value = '';
+            document.getElementById('auth-password').value = '';
+            authError.classList.add('hidden');
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            performLogout(true);
+            showToast("Successfully logged out", "info");
+        });
+
+        async function checkSavedSession() {
+            try {
+                const saved = localStorage.getItem('mesh_chat_session');
+                if (!saved) return;
+
+                const parsed = JSON.parse(saved);
+                if (!parsed || (!parsed.id && !parsed.username)) return;
+
+                let query = supabaseClient.from('profiles').select('*');
+                if (parsed.id) query = query.eq('id', parsed.id);
+                else query = query.eq('username', parsed.username);
+
+                const { data: profile, error } = await query.maybeSingle();
+                if (profile && !error) {
+                    initAuthenticatedSession(profile, false);
+                    showToast(`Welcome back, @${profile.username}!`, "success");
+                } else {
+                    localStorage.removeItem('mesh_chat_session');
+                }
+            } catch(e) {
+                localStorage.removeItem('mesh_chat_session');
+            }
+        }
 
         function setupPresenceRealtime() {
             presenceChannel = supabaseClient.channel('online-users', {
@@ -2061,9 +2173,10 @@
             return (str || '').replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', async () => {
             enumerateDevices();
             updateChannelHeaderControls();
+            await checkSavedSession();
         });
     </script>
 </body>
