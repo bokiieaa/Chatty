@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mesh Chat</title>
     <link id="favicon" rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'><path d='M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z'/></svg>">
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         tailwind.config = {
@@ -40,7 +38,6 @@
         }
     </script>
     <style>
-        /* Custom Scrollbars */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
         ::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.4); border-radius: 9999px; }
@@ -67,10 +64,8 @@
 </head>
 <body class="bg-slate-950 text-slate-100 h-screen w-screen flex flex-col md:flex-row font-sans overflow-hidden antialiased select-none">
 
-    <!-- Toast Container -->
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
-    <!-- Universal Custom Dialog Modal (Replaces Native alert / confirm) -->
     <div id="custom-dialog-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-4">
             <h3 id="dialog-title" class="text-base font-bold text-slate-100">Notice</h3>
@@ -84,7 +79,6 @@
 
     <input type="file" id="pfp-upload-input" class="hidden" accept="image/*">
 
-    <!-- Right-Click Context Menu for Channels -->
     <div id="channel-context-menu" class="hidden fixed z-50 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-1.5 text-xs w-48">
         <button id="context-invite-btn" onclick="openChannelInviteModalFromContext()" class="w-full text-left px-3 py-2 hover:bg-indigo-600 hover:text-white rounded-lg transition-colors cursor-pointer font-medium flex items-center gap-2">
             <span>📨</span> Invite Users to Channel
@@ -94,7 +88,6 @@
         </button>
     </div>
 
-    <!-- Server / Channel Invite Modal -->
     <div id="invite-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-4">
             <div class="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -132,7 +125,6 @@
         </div>
     </div>
 
-    <!-- Admin Command Panel Modal -->
     <div id="admin-panel-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-indigo-500/50 p-6 rounded-2xl max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b border-slate-800 pb-2">
@@ -206,7 +198,6 @@
         </div>
     </div>
 
-    <!-- Report Modal -->
     <div id="report-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-4">
             <h3 class="text-sm font-bold text-slate-100">Report Content or User</h3>
@@ -218,7 +209,6 @@
         </div>
     </div>
 
-    <!-- User Directory Modal -->
     <div id="presence-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full shadow-2xl space-y-4 max-h-[80vh] flex flex-col">
             <div class="flex justify-between items-center border-b border-slate-800 pb-3">
@@ -238,7 +228,6 @@
         </div>
     </div>
 
-    <!-- Incoming Call Modal -->
     <div id="incoming-call-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-indigo-500 p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-4 text-center">
             <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 mx-auto flex items-center justify-center text-2xl font-bold animate-pulse text-white shadow-lg shadow-indigo-500/30">
@@ -255,7 +244,6 @@
         </div>
     </div>
 
-    <!-- Profile View Modal -->
     <div id="view-profile-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-2xl max-w-sm w-full shadow-2xl space-y-4 text-center">
             <div id="view-profile-avatar" class="w-20 h-20 rounded-full bg-indigo-600 mx-auto flex items-center justify-center text-xl font-bold overflow-hidden border border-slate-700">?</div>
@@ -270,7 +258,6 @@
         </div>
     </div>
 
-    <!-- Profile Edit Modal -->
     <div id="profile-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-2xl max-w-md w-full shadow-2xl space-y-4">
             <h2 class="text-xl font-bold text-slate-100">Edit Profile & Status</h2>
@@ -304,10 +291,6 @@
         </div>
     </div>
 
-
-    <!-- ========================================================= -->
-    <!-- INPUT & DEVICE SELECTION DRAWER MODAL                     -->
-    <!-- ========================================================= -->
     <div id="device-settings-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full shadow-2xl space-y-5">
             <div class="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -317,7 +300,6 @@
                 <button onclick="document.getElementById('device-settings-modal').classList.add('hidden')" class="text-slate-500 hover:text-slate-300 font-bold">&times;</button>
             </div>
 
-            <!-- Mic Selector -->
             <div>
                 <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Microphone (Audio Input)</label>
                 <select id="mic-device-select" class="w-full bg-slate-950 border border-slate-800 text-xs rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-indigo-500">
@@ -331,7 +313,6 @@
                 </div>
             </div>
 
-            <!-- Camera Selector -->
             <div>
                 <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Camera (Video Input)</label>
                 <select id="cam-device-select" class="w-full bg-slate-950 border border-slate-800 text-xs rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-indigo-500">
@@ -339,7 +320,6 @@
                 </select>
             </div>
 
-            <!-- Audio Output Speaker Selector -->
             <div>
                 <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Speaker (Audio Output)</label>
                 <select id="speaker-device-select" class="w-full bg-slate-950 border border-slate-800 text-xs rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-indigo-500">
@@ -348,7 +328,6 @@
                 <p id="speaker-support-notice" class="text-[10px] text-slate-500 mt-1 italic">Audio output selection supported on Chrome/Edge browsers.</p>
             </div>
 
-            <!-- Mirror Switch -->
             <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950 border border-slate-800">
                 <span class="text-xs font-medium text-slate-300">Mirror My Video Preview</span>
                 <label class="relative inline-flex items-center cursor-pointer">
@@ -365,14 +344,8 @@
         </div>
     </div>
 
-
-    <!-- ========================================================= -->
-    <!-- ASPECT RATIO PRESERVING SCREEN SHARE POPUP OVERLAY        -->
-    <!-- ========================================================= -->
     <div id="screenshare-popup-modal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
         <div id="screenshare-popup-container" class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden max-w-[92vw] max-h-[85vh] transition-all duration-200">
-            
-            <!-- Popup Header Bar -->
             <div class="px-4 py-3 glass-panel border-b border-slate-800 flex items-center justify-between shrink-0">
                 <div class="flex items-center gap-2 min-w-0">
                     <span class="text-base">🖥️</span>
@@ -394,20 +367,13 @@
                 </div>
             </div>
 
-            <!-- Native Aspect Ratio Video Stage Box -->
             <div id="screenshare-video-wrapper" class="flex-1 bg-black flex items-center justify-center relative min-h-0 overflow-hidden">
                 <video id="screenshare-popup-video" autoplay playsinline class="w-full h-full object-contain max-h-[75vh]"></video>
             </div>
         </div>
     </div>
 
-
-    <!-- ========================================================= -->
-    <!-- WEBRTC FULL-SCREEN VIDEO CALL STAGE OVERLAY               -->
-    <!-- ========================================================= -->
     <div id="video-call-stage" class="hidden fixed inset-0 z-40 bg-slate-950 flex flex-col overflow-hidden">
-        
-        <!-- Video Top Header Bar -->
         <header class="h-16 px-4 md:px-6 flex items-center justify-between glass-panel z-20 shrink-0">
             <div class="flex items-center gap-3">
                 <div class="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-bold text-xs text-white shadow-lg">
@@ -428,7 +394,6 @@
                 </div>
             </div>
 
-            <!-- Header Quick Actions -->
             <div class="flex items-center gap-2">
                 <button onclick="toggleDeviceSettingsModal()" class="p-2.5 glass-control rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors" title="Device Settings">
                     ⚙️
@@ -439,18 +404,14 @@
             </div>
         </header>
 
-        <!-- Main Video Grid Container -->
         <div class="flex-1 flex min-h-0 relative overflow-hidden">
             <div class="flex-1 p-4 flex items-center justify-center min-h-0 relative overflow-y-auto">
                 <div id="video-grid" class="w-full h-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-4 items-center justify-center">
                     
-                    <!-- Remote Peer Participant Tile -->
                     <div id="remote-participant-tile" class="relative w-full h-full min-h-[220px] max-h-[75vh] bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex items-center justify-center shadow-2xl group">
-                        
                         <video id="remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
                         <audio id="remote-audio" autoplay></audio>
                         
-                        <!-- Remote Avatar Fallback -->
                         <div id="remote-avatar-fallback" class="hidden absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-4">
                             <div id="remote-avatar-ring" class="w-28 h-28 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-3xl font-bold text-white shadow-2xl border-4 border-slate-800 transition-all duration-150">
                                 <span id="remote-avatar-initials">RP</span>
@@ -458,7 +419,6 @@
                             <p id="remote-avatar-name" class="text-sm font-semibold text-slate-300 mt-3">Remote Participant</p>
                         </div>
 
-                        <!-- Tile Badges -->
                         <div class="absolute top-3 left-3 flex items-center gap-2">
                             <span id="remote-name-badge" class="glass-panel px-3 py-1 rounded-lg text-xs font-semibold text-white shadow">
                                 Remote Peer
@@ -471,12 +431,9 @@
                         </div>
                     </div>
 
-                    <!-- Local User Participant Tile -->
                     <div id="local-participant-tile" class="relative w-full h-full min-h-[220px] max-h-[75vh] bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex items-center justify-center shadow-2xl group">
-                        
                         <video id="local-video" autoplay playsinline muted class="w-full h-full object-cover video-mirror"></video>
                         
-                        <!-- Local Avatar Fallback -->
                         <div id="local-avatar-fallback" class="hidden absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-4">
                             <div id="local-avatar-ring" class="w-28 h-28 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-800 flex items-center justify-center text-3xl font-bold text-white shadow-2xl border-4 border-slate-800 transition-all duration-150">
                                 <span id="local-avatar-initials">ME</span>
@@ -484,7 +441,6 @@
                             <p id="local-avatar-name" class="text-sm font-semibold text-slate-300 mt-3">You</p>
                         </div>
 
-                        <!-- Tile Badges -->
                         <div class="absolute top-3 left-3 flex items-center gap-2">
                             <span id="local-name-badge" class="glass-panel px-3 py-1 rounded-lg text-xs font-semibold text-white shadow">
                                 You (Host)
@@ -503,7 +459,6 @@
                 </div>
             </div>
 
-            <!-- In-Call Side Chat Drawer -->
             <div id="incall-side-drawer" class="hidden w-80 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0 z-30">
                 <div class="p-3 border-b border-slate-800 flex items-center justify-between">
                     <h4 class="text-xs font-bold text-slate-200 uppercase tracking-wider">In-Call Room Chat</h4>
@@ -519,40 +474,32 @@
             </div>
         </div>
 
-        <!-- Floating Glassmorphic Call Control Bar -->
         <div class="h-20 flex items-center justify-center p-4 z-30 shrink-0 pointer-events-none">
             <div class="glass-panel px-6 py-3 rounded-2xl flex items-center gap-3 md:gap-4 shadow-2xl pointer-events-auto">
-                
-                <!-- Mic Button -->
                 <button id="call-btn-mic" onclick="toggleMicMute()" class="p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white shadow-lg transition-all transform active:scale-95" title="Toggle Mic (Ctrl+M)">
                     <span id="icon-mic-on" class="text-lg">🎙️</span>
                     <span id="icon-mic-off" class="text-lg hidden text-rose-400">🔇</span>
                 </button>
 
-                <!-- Cam Button -->
                 <button id="call-btn-cam" onclick="toggleCamMute()" class="p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white shadow-lg transition-all transform active:scale-95" title="Toggle Camera (Ctrl+E)">
                     <span id="icon-cam-on" class="text-lg">📹</span>
                     <span id="icon-cam-off" class="text-lg hidden text-rose-400">🚫</span>
                 </button>
 
-                <!-- Screen Share Button -->
                 <button id="call-btn-screen" onclick="toggleScreenShare()" class="p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white shadow-lg transition-all transform active:scale-95" title="Share Screen">
                     <span class="text-lg">🖥️</span>
                 </button>
 
-                <!-- Settings Button -->
                 <button onclick="toggleDeviceSettingsModal()" class="p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white shadow-lg transition-all transform active:scale-95" title="Audio / Video Settings">
                     <span class="text-lg">⚙️</span>
                 </button>
 
-                <!-- Fullscreen Button -->
                 <button onclick="toggleCallFullscreen()" class="p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white shadow-lg transition-all transform active:scale-95" title="Toggle Fullscreen">
                     <span class="text-lg">⛶</span>
                 </button>
 
                 <div class="h-8 w-px bg-slate-800 mx-1"></div>
 
-                <!-- End Call Button -->
                 <button onclick="endActiveVideoCall()" class="px-5 py-3.5 rounded-xl bg-rose-600 hover:bg-rose-500 font-bold text-white shadow-lg shadow-rose-600/30 transition-all transform active:scale-95 flex items-center gap-2 text-xs">
                     <span>📞</span> End Call
                 </button>
@@ -561,8 +508,6 @@
 
     </div>
 
-
-    <!-- Auth Access Modal -->
     <div id="auth-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-2xl max-w-md w-full shadow-2xl space-y-5">
             <div class="text-center">
@@ -589,16 +534,12 @@
         </div>
     </div>
 
-
-    <!-- ========================================================= -->
-    <!-- MAIN APPLICATION SIDEBAR & CHAT WORKSPACE                -->
-    <!-- ========================================================= -->
     <aside class="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between shrink-0 h-48 md:h-full">
         <div class="p-4 space-y-4 overflow-y-auto flex-1">
             <div class="flex items-center justify-between">
                 <span class="font-bold text-sm text-slate-200 flex items-center gap-2">
                     <span id="self-standing-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
-                    Mesh Chat <span class="text-[10px] text-indigo-400 font-mono">v2.5</span>
+                    Mesh Chat <span class="text-[10px] text-indigo-400 font-mono">v2.6</span>
                 </span>
                 <div class="flex gap-1">
                     <button id="open-admin-panel-btn" class="hidden text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded transition-colors cursor-pointer">⚡ Panel</button>
@@ -606,7 +547,6 @@
                 </div>
             </div>
 
-            <!-- Instant Loopback Test Button -->
             <button onclick="startLoopbackVideoTest()" class="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition-all cursor-pointer">
                 <span>📹</span> Test Cam & Mic (Loopback)
             </button>
@@ -662,10 +602,7 @@
         </div>
     </aside>
 
-    <!-- Main Workspace Panel -->
     <main class="flex-1 flex flex-col bg-slate-950 min-w-0 overflow-hidden h-full">
-        
-        <!-- Header Bar -->
         <header class="p-3 sm:p-4 border-b border-slate-800 bg-slate-900/40 flex items-center justify-between shrink-0">
             <div class="flex items-center gap-2">
                 <h1 id="active-channel-title" class="text-sm font-bold text-slate-200 truncate"># general</h1>
@@ -684,7 +621,6 @@
                     ⚙️ Devices
                 </button>
 
-                <!-- Dynamic Channel Video Call Launch Control -->
                 <div id="call-controls" class="flex gap-2">
                     <button id="call-btn" onclick="handleCallButtonClick()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
                         <span id="call-btn-icon">📹</span> <span id="call-btn-label">Start Call</span>
@@ -693,7 +629,6 @@
             </div>
         </header>
 
-        <!-- Active Channel Group Call Live Banner -->
         <div id="group-call-banner" class="hidden bg-emerald-950/80 border-b border-emerald-500/40 px-4 py-2.5 flex items-center justify-between shrink-0 z-20">
             <div class="flex items-center gap-3">
                 <span class="relative flex h-3 w-3">
@@ -737,16 +672,11 @@
         </footer>
     </main>
 
-    <!-- ========================================================= -->
-    <!-- APPLICATION LOGIC & WEBRTC ENGINE                        -->
-    <!-- ========================================================= -->
     <script>
-        // Supabase Client Configuration
         const SUPABASE_URL = "https://yygscvzdlfudhjmyhuxu.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_AAAy7XWb589B4sBcR5Sqjw__sOLyOlE";
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // Core App State
         let currentUser = null;
         let activeChannel = 'general';
         let customChannelsSet = new Set(['general', 'announcements']);
@@ -764,12 +694,15 @@
         let presenceChannel = null;
         const USERNAME_REGEX = /^[a-z0-9_.]+$/;
 
-        // Call State Variables
+        let unreadCounts = {};
+        let lastReadTimestamps = {};
+        let unreadFirstMsgId = {};
+
         let localStream = null;
         let peerConnection = null;
         let displayStream = null;
         let activeCallTarget = null;
-        let activeCallType = 'dm'; // 'dm' | 'group' | 'loopback'
+        let activeCallType = 'dm';
         let personalSignalingChannel = null;
         let pendingOfferPayload = null;
         let isCallActive = false;
@@ -781,15 +714,11 @@
         let callTimerInterval = null;
         let activeGroupCallChannel = null;
 
-        // Web Audio API & VU Systems
         let audioCtx = null;
         let localAudioAnalyser = null;
         let audioVUInterval = null;
 
-        // Cross-Tab Signaling BroadcastChannel Fallback
         const broadcastSignaling = new BroadcastChannel('mesh_chat_signaling');
-
-        // Session Lock BroadcastChannel for Single Account Enforcement Across Tabs
         const sessionLockChannel = new BroadcastChannel('mesh_session_lock');
 
         sessionLockChannel.onmessage = (event) => {
@@ -826,7 +755,6 @@
             }
         });
 
-        // WebRTC Config
         const rtcConfig = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -834,7 +762,6 @@
             ]
         };
 
-        // DOM Element References
         const authModal = document.getElementById('auth-modal');
         const authError = document.getElementById('auth-error');
         const profileModal = document.getElementById('profile-modal');
@@ -848,7 +775,6 @@
         const mentionAutocomplete = document.getElementById('mention-autocomplete');
         const typingIndicator = document.getElementById('typing-indicator');
 
-        // Video Stage Elements
         const videoCallStage = document.getElementById('video-call-stage');
         const localVideo = document.getElementById('local-video');
         const remoteVideo = document.getElementById('remote-video');
@@ -856,21 +782,17 @@
         const localAvatarFallback = document.getElementById('local-avatar-fallback');
         const remoteAvatarFallback = document.getElementById('remote-avatar-fallback');
 
-        // Screen Share Elements
         const screensharePopupModal = document.getElementById('screenshare-popup-modal');
         const screensharePopupVideo = document.getElementById('screenshare-popup-video');
         const screensharePopupContainer = document.getElementById('screenshare-popup-container');
 
-        // Devices Dropdowns
         const micDeviceSelect = document.getElementById('mic-device-select');
         const camDeviceSelect = document.getElementById('cam-device-select');
         const speakerDeviceSelect = document.getElementById('speaker-device-select');
 
-        // Context Menu Targets
         let contextChannelId = null;
         let contextChannelName = null;
 
-        // Handle URL Hash Direct Channel Invites
         window.addEventListener('load', () => {
             const hash = window.location.hash;
             if (hash && hash.startsWith('#invite=')) {
@@ -884,16 +806,81 @@
             }
         });
 
-        // Hide context menu on global click
         window.addEventListener('click', (e) => {
             if (!e.target.closest('#mention-autocomplete') && e.target !== msgInput) mentionAutocomplete.classList.add('hidden');
             contextMenu.classList.add('hidden');
         });
 
+        function loadSavedLastReadTimestamps() {
+            if (!currentUser) return;
+            try {
+                const raw = localStorage.getItem(`mesh_last_read_${currentUser.username}`);
+                if (raw) lastReadTimestamps = JSON.parse(raw);
+            } catch(e) {
+                lastReadTimestamps = {};
+            }
+        }
 
-        // =========================================================
-        // TOASTS, AUDIO SYNTHESIZER & CUSTOM DIALOGS
-        // =========================================================
+        function saveLastReadTimestamp(channelId) {
+            if (!currentUser) return;
+            lastReadTimestamps[channelId] = Date.now();
+            localStorage.setItem(`mesh_last_read_${currentUser.username}`, JSON.stringify(lastReadTimestamps));
+        }
+
+        async function computeInitialUnreadCounts() {
+            if (!currentUser) return;
+            loadSavedLastReadTimestamps();
+
+            const { data: messages } = await supabaseClient
+                .from('chat_messages')
+                .select('id, channel_id, created_at, username')
+                .order('created_at', { ascending: true })
+                .limit(500);
+
+            unreadCounts = {};
+            unreadFirstMsgId = {};
+
+            if (messages) {
+                messages.forEach(msg => {
+                    if (msg.username === currentUser.username) return;
+                    const chanId = msg.channel_id;
+                    const lastRead = lastReadTimestamps[chanId] || 0;
+                    const msgTime = new Date(msg.created_at).getTime();
+
+                    if (msgTime > lastRead && chanId !== activeChannel) {
+                        unreadCounts[chanId] = (unreadCounts[chanId] || 0) + 1;
+                        if (!unreadFirstMsgId[chanId]) unreadFirstMsgId[chanId] = msg.id;
+                    }
+                });
+            }
+
+            loadChannels();
+            loadFriends();
+        }
+
+        chatBox.addEventListener('scroll', () => {
+            if (!activeChannel) return;
+            const threshold = chatBox.scrollHeight - chatBox.clientHeight - 80;
+            if (chatBox.scrollTop >= threshold) {
+                clearUnreadForActiveChannel();
+            }
+        });
+
+        function clearUnreadForActiveChannel() {
+            if (!activeChannel) return;
+            unreadCounts[activeChannel] = 0;
+            delete unreadFirstMsgId[activeChannel];
+            saveLastReadTimestamp(activeChannel);
+
+            const divider = document.getElementById('new-messages-divider');
+            if (divider) {
+                divider.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+                setTimeout(() => divider.remove(), 300);
+            }
+
+            loadChannels();
+            loadFriends();
+        }
 
         function showToast(message, type = 'info') {
             const container = document.getElementById('toast-container');
@@ -957,11 +944,6 @@
             } catch(e) {}
         }
 
-
-        // =========================================================
-        // FEATURE 1: CHANNEL INVITES & RICH DM CARDS
-        // =========================================================
-
         function openChannelInviteModalCurrent() {
             contextChannelId = activeChannel;
             contextChannelName = channelNamesMap.get(activeChannel) || `# ${activeChannel}`;
@@ -978,7 +960,6 @@
             }
             document.getElementById('invite-modal-channel-name').textContent = contextChannelName || `# ${contextChannelId}`;
             
-            // Populate Friends List in Invite Modal
             const list = document.getElementById('invite-friends-list');
             list.innerHTML = '';
             if (userFriends.size > 0) {
@@ -1014,7 +995,6 @@
             const dmChannelId = getDMChannelID(currentUser.username, targetUsername);
             const invitePayloadStr = `[INVITE:${targetChanId}:${targetChanName}]`;
 
-            // Insert into Chat Messages
             const { error } = await supabaseClient.from('chat_messages').insert([{
                 user_id: currentUser.id,
                 username: currentUser.username,
@@ -1022,7 +1002,6 @@
                 message: `Hey @${targetUsername}! I'm inviting you to join ${targetChanName}.\n${invitePayloadStr}`
             }]);
 
-            // Broadcast via Cross-Tab Signaling
             broadcastSignaling.postMessage({
                 type: 'channel_invite',
                 sender: currentUser.username,
@@ -1050,7 +1029,6 @@
             const encoded = btoa(`${cid}|${cname}`);
             const inviteUrl = `${window.location.origin}${window.location.pathname}#invite=${encoded}`;
             
-            // Clipboard Fallback
             const dummy = document.createElement('input');
             document.body.appendChild(dummy);
             dummy.value = inviteUrl;
@@ -1066,23 +1044,20 @@
             channelNamesMap.set(cid, cname);
             activeChannel = cid;
 
+            saveLastReadTimestamp(cid);
+            unreadCounts[cid] = 0;
+
             loadChannels();
             updateChannelHeaderControls();
             loadChannelMessages();
             showToast(`Joined channel ${cname}!`, "success");
         }
 
-
-        // =========================================================
-        // FEATURE 2: ASPECT-RATIO PRESERVING SCREEN SHARE POPUP
-        // =========================================================
-
         function displayScreenShareInPopup(stream, titleText = "Screen Share Stream") {
             screensharePopupVideo.srcObject = stream;
             document.getElementById('screenshare-popup-title').textContent = titleText;
             screensharePopupModal.classList.remove('hidden');
 
-            // Dynamic Aspect Ratio Calculation
             const videoTrack = stream.getVideoTracks()[0];
             if (videoTrack) {
                 const settings = videoTrack.getSettings();
@@ -1107,7 +1082,6 @@
             const badge = document.getElementById('screenshare-aspect-badge');
             badge.textContent = `${width}x${height} (${ratioW}:${ratioH})`;
 
-            // Set inline CSS Aspect Ratio
             screensharePopupContainer.style.aspectRatio = `${width} / ${height}`;
         }
 
@@ -1135,10 +1109,8 @@
             }
         }
 
-        // Screen Sharing Media Acquisition & Track Hot-Swapping
         async function toggleScreenShare() {
             if (!isCallActive) {
-                // If not in active call, allow standalone preview test
                 try {
                     displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
                     displayScreenShareInPopup(displayStream, "Your Screen Share Preview");
@@ -1188,11 +1160,6 @@
             }
         }
 
-
-        // =========================================================
-        // FEATURE 3: CHANNEL GROUP CALLS (#general Restricted)
-        // =========================================================
-
         function updateChannelHeaderControls() {
             const callBtn = document.getElementById('call-btn');
             const callBtnIcon = document.getElementById('call-btn-icon');
@@ -1220,7 +1187,6 @@
                 callBtnIcon.textContent = "👥";
                 callBtnLabel.textContent = "Start Group Call";
 
-                // Check active group call state
                 if (activeGroupCallChannel === activeChannel && !isCallActive) {
                     banner.classList.remove('hidden');
                     document.getElementById('group-call-banner-text').textContent = `Group Call Active in ${channelNamesMap.get(activeChannel) || activeChannel}`;
@@ -1255,7 +1221,6 @@
             document.getElementById('call-type-badge').textContent = "Channel Group Call";
             document.getElementById('remote-name-badge').textContent = "Group Peers";
 
-            // Broadcast group call active state to peers
             broadcastSignaling.postMessage({
                 type: 'group_call_started',
                 channelId,
@@ -1274,11 +1239,6 @@
                 startGroupCallInChannel(activeGroupCallChannel);
             }
         }
-
-
-        // =========================================================
-        // WEBRTC CALL ENGINE & LOOPBACK TEST CONTROLLER
-        // =========================================================
 
         async function acquireLocalMedia() {
             try {
@@ -1374,7 +1334,6 @@
             };
         }
 
-        // Handle BroadcastChannel & Supabase Realtime Signals
         broadcastSignaling.onmessage = (event) => {
             const data = event.data;
             if (!data) return;
@@ -1503,11 +1462,6 @@
             updateChannelHeaderControls();
             showToast("Call ended", "info");
         }
-
-
-        // =========================================================
-        // MIC / CAM CONTROLS & DEVICE ENUMERATION
-        // =========================================================
 
         function toggleMicMute() {
             if (!localStream) return;
@@ -1647,13 +1601,20 @@
             document.getElementById('incall-side-drawer').classList.toggle('hidden');
         }
 
-
-        // =========================================================
-        // CHAT MESSAGE RENDERING & INVITE CARD DETECTOR
-        // =========================================================
-
         async function appendMessageUI(msg) {
             if (document.getElementById(`msg-${msg.id}`)) return;
+
+            if (unreadFirstMsgId[activeChannel] === msg.id && !document.getElementById('new-messages-divider')) {
+                const divider = document.createElement('div');
+                divider.id = 'new-messages-divider';
+                divider.className = 'flex items-center gap-2 my-4 px-2 transition-all duration-300';
+                divider.innerHTML = `
+                    <div class="h-px bg-rose-500/50 flex-1"></div>
+                    <span class="text-[10px] font-extrabold text-rose-300 uppercase tracking-widest px-3 py-1 bg-rose-950/90 border border-rose-500/40 rounded-full shadow-lg">NEW MESSAGES</span>
+                    <div class="h-px bg-rose-500/50 flex-1"></div>
+                `;
+                chatBox.appendChild(divider);
+            }
 
             const msgEl = document.createElement('div');
             msgEl.id = `msg-${msg.id}`;
@@ -1666,7 +1627,6 @@
             let textContent = msg.message || '';
             let inviteCardHTML = '';
 
-            // Detect Channel Invite Payload tag: [INVITE:channel_id:channel_name]
             const inviteMatch = textContent.match(/\[INVITE:([^:]+):([^\]]+)\]/);
             if (inviteMatch) {
                 const invChanId = inviteMatch[1];
@@ -1717,13 +1677,11 @@
                 </div>
             `;
             chatBox.appendChild(msgEl);
-            chatBox.scrollTop = chatBox.scrollHeight;
+            
+            if (unreadCounts[activeChannel] === 0 || !unreadFirstMsgId[activeChannel]) {
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }
         }
-
-
-        // =========================================================
-        // CORE AUTH & CHAT HELPERS
-        // =========================================================
 
         document.getElementById('signup-btn').addEventListener('click', async () => {
             const username = document.getElementById('auth-username').value.trim();
@@ -1762,11 +1720,10 @@
             return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        function initAuthenticatedSession(profile, isNewLogin = true) {
+        async function initAuthenticatedSession(profile, isNewLogin = true) {
             currentUser = profile;
             manualStanding = profile.standing || 'online';
 
-            // Store session in localStorage for session persistence
             localStorage.setItem('mesh_chat_session', JSON.stringify({
                 id: profile.id,
                 username: profile.username,
@@ -1788,6 +1745,7 @@
             listenToPersonalSignaling();
             loadFriends();
             loadChannels();
+            await computeInitialUnreadCounts();
             loadChannelMessages();
             startFastPolling();
             listenToRealtimeMessages();
@@ -1848,7 +1806,7 @@
 
                 const { data: profile, error } = await query.maybeSingle();
                 if (profile && !error) {
-                    initAuthenticatedSession(profile, false);
+                    await initAuthenticatedSession(profile, false);
                     showToast(`Welcome back, @${profile.username}!`, "success");
                 } else {
                     localStorage.removeItem('mesh_chat_session');
@@ -1949,12 +1907,29 @@
                 btn.dataset.channel = cid;
                 btn.dataset.name = cname;
                 const isActive = activeChannel === cid;
-                btn.className = `channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${isActive ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'} transition-colors flex items-center justify-between cursor-pointer`;
-                btn.innerHTML = `<span>${cname}</span>`;
+                const unread = unreadCounts[cid] || 0;
+
+                let textClass = 'text-slate-400 hover:bg-slate-800 hover:text-slate-200';
+                if (isActive) {
+                    textClass = 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30';
+                } else if (unread > 0) {
+                    textClass = cid === 'general' ? 'text-white font-bold bg-slate-800/80 border border-slate-700' : 'text-slate-200 font-bold bg-slate-900 border border-slate-800';
+                }
+
+                let badgeHTML = '';
+                if (unread > 0 && !isActive) {
+                    if (cid === 'general') {
+                        badgeHTML = `<span class="bg-white text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full shadow animate-pulse shrink-0">NEW</span>`;
+                    } else {
+                        badgeHTML = `<span class="bg-rose-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full shadow min-w-[20px] text-center animate-pulse shrink-0">${unread}</span>`;
+                    }
+                }
+
+                btn.className = `channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${textClass} transition-colors flex items-center justify-between cursor-pointer gap-2`;
+                btn.innerHTML = `<span class="truncate">${cname}</span> ${badgeHTML}`;
                 channelList.appendChild(btn);
             });
 
-            // Bind Right-Click Context Menu
             document.querySelectorAll('.channel-btn').forEach(btn => {
                 btn.addEventListener('contextmenu', (e) => {
                     e.preventDefault();
@@ -2065,8 +2040,22 @@
                         dmBtn.dataset.channel = cid;
                         dmBtn.dataset.name = `@ ${otherDisplay}`;
                         const isActive = activeChannel === cid;
-                        dmBtn.className = `channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${isActive ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'} transition-colors flex items-center justify-between cursor-pointer`;
-                        dmBtn.innerHTML = `<span class="flex items-center gap-1.5 min-w-0">${renderStandingBadgeDot(standing)} <span class="truncate">💬 ${otherDisplay}</span></span>`;
+                        const unread = unreadCounts[cid] || 0;
+
+                        let textClass = 'text-slate-400 hover:bg-slate-800 hover:text-slate-200';
+                        if (isActive) {
+                            textClass = 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30';
+                        } else if (unread > 0) {
+                            textClass = 'text-slate-100 font-bold bg-slate-900 border border-slate-800';
+                        }
+
+                        let badgeHTML = '';
+                        if (unread > 0 && !isActive) {
+                            badgeHTML = `<span class="bg-rose-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full shadow min-w-[20px] text-center animate-pulse shrink-0">${unread}</span>`;
+                        }
+
+                        dmBtn.className = `channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${textClass} transition-colors flex items-center justify-between cursor-pointer gap-2`;
+                        dmBtn.innerHTML = `<span class="flex items-center gap-1.5 min-w-0">${renderStandingBadgeDot(standing)} <span class="truncate">💬 ${otherDisplay}</span></span> ${badgeHTML}`;
                         dmBtn.onclick = () => openDM(other.username);
                         dmList.appendChild(dmBtn);
 
@@ -2113,6 +2102,18 @@
                     await appendMessageUI(msg);
                 }
             }
+
+            if (unreadCounts[activeChannel] > 0 && unreadFirstMsgId[activeChannel]) {
+                const divider = document.getElementById('new-messages-divider');
+                if (divider) divider.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                chatBox.scrollTop = chatBox.scrollHeight;
+                saveLastReadTimestamp(activeChannel);
+                unreadCounts[activeChannel] = 0;
+                delete unreadFirstMsgId[activeChannel];
+                loadChannels();
+                loadFriends();
+            }
         }
 
         function startFastPolling() {
@@ -2147,15 +2148,29 @@
             }]);
 
             msgInput.value = '';
+            saveLastReadTimestamp(activeChannel);
+            unreadCounts[activeChannel] = 0;
+            delete unreadFirstMsgId[activeChannel];
             loadChannelMessages();
         });
 
         function listenToRealtimeMessages() {
             supabaseClient.channel('public:chat_messages')
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, payload => {
-                    if (payload.new.channel_id === activeChannel && !knownMessageIds.has(payload.new.id)) {
-                        knownMessageIds.add(payload.new.id);
-                        appendMessageUI(payload.new);
+                    const msg = payload.new;
+                    if (msg.username === currentUser?.username) return;
+
+                    if (msg.channel_id === activeChannel) {
+                        if (!knownMessageIds.has(msg.id)) {
+                            knownMessageIds.add(msg.id);
+                            appendMessageUI(msg);
+                        }
+                    } else {
+                        unreadCounts[msg.channel_id] = (unreadCounts[msg.channel_id] || 0) + 1;
+                        if (!unreadFirstMsgId[msg.channel_id]) unreadFirstMsgId[msg.channel_id] = msg.id;
+                        loadChannels();
+                        loadFriends();
+                        showToast(`New message in ${channelNamesMap.get(msg.channel_id) || msg.channel_id}`, "info");
                     }
                 }).subscribe();
         }
