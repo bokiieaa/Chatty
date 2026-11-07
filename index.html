@@ -189,7 +189,7 @@
             <div class="space-y-2 border-t border-slate-800 pt-3">
                 <div class="flex justify-between items-center">
                     <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Incoming User Reports</h3>
-                    <button onclick="refreshAdminReports()" class="text-[10px] text-indigo-400 hover:underline">Refresh</button>
+                    <button onclick="refreshAdminReports()" class="text-[10px] text-indigo-400 hover:underline cursor-pointer">Refresh</button>
                 </div>
                 <div id="admin-reports-list" class="space-y-2 max-h-48 overflow-y-auto pr-1">
                     <p class="text-xs text-slate-500 italic">No reports logged.</p>
@@ -539,7 +539,7 @@
             <div class="flex items-center justify-between">
                 <span class="font-bold text-sm text-slate-200 flex items-center gap-2">
                     <span id="self-standing-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
-                    Mesh Chat <span class="text-[10px] text-indigo-400 font-mono">v2.6</span>
+                    Mesh Chat <span class="text-[10px] text-indigo-400 font-mono">v2.7</span>
                 </span>
                 <div class="flex gap-1">
                     <button id="open-admin-panel-btn" class="hidden text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded transition-colors cursor-pointer">⚡ Panel</button>
@@ -780,7 +780,6 @@
         const remoteVideo = document.getElementById('remote-video');
         const remoteAudio = document.getElementById('remote-audio');
         const localAvatarFallback = document.getElementById('local-avatar-fallback');
-        const remoteAvatarFallback = document.getElementById('remote-avatar-fallback');
 
         const screensharePopupModal = document.getElementById('screenshare-popup-modal');
         const screensharePopupVideo = document.getElementById('screenshare-popup-video');
@@ -792,6 +791,7 @@
 
         let contextChannelId = null;
         let contextChannelName = null;
+        let activeReportTarget = null;
 
         window.addEventListener('load', () => {
             const hash = window.location.hash;
@@ -943,6 +943,160 @@
                 }
             } catch(e) {}
         }
+
+        document.getElementById('open-admin-panel-btn').addEventListener('click', async () => {
+            document.getElementById('admin-panel-modal').classList.remove('hidden');
+            await refreshAdminStats();
+            await refreshAdminReports();
+        });
+
+        async function refreshAdminStats() {
+            const { count: uCount } = await supabaseClient.from('profiles').select('*', { count: 'exact', head: true });
+            const { count: mCount } = await supabaseClient.from('chat_messages').select('*', { count: 'exact', head: true });
+            const { count: rCount } = await supabaseClient.from('reports').select('*', { count: 'exact', head: true });
+
+            document.getElementById('admin-stat-users').textContent = uCount || 0;
+            document.getElementById('admin-stat-messages').textContent = mCount || 0;
+            document.getElementById('admin-stat-reports').textContent = rCount || 0;
+            document.getElementById('admin-stat-active').textContent = onlineUsersMap.size || 1;
+        }
+
+        async function refreshAdminReports() {
+            const { data: reports } = await supabaseClient.from('reports').select('*').order('created_at', { ascending: false });
+            const list = document.getElementById('admin-reports-list');
+            list.innerHTML = '';
+
+            if (reports && reports.length > 0) {
+                reports.forEach(r => {
+                    const div = document.createElement('div');
+                    div.className = "bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs space-y-1.5";
+                    div.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-slate-200">Reporter: @${escapeHTML(r.reporter_username || 'Unknown')}</span>
+                            <span class="text-[10px] text-slate-500">${new Date(r.created_at || Date.now()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                        </div>
+                        <p class="text-indigo-400 font-semibold">Target (${escapeHTML(r.target_type || 'user')}): <b>${escapeHTML(r.target_id || '')}</b></p>
+                        <p class="text-slate-300 italic bg-slate-900/60 p-2 rounded-lg border border-slate-800">"${escapeHTML(r.reason || 'No reason specified')}"</p>
+                        <div class="flex justify-end gap-2 pt-1">
+                            <button onclick="dismissReport('${r.id}')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold px-3 py-1 rounded-md transition-colors cursor-pointer">
+                                Dismiss Report
+                            </button>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            } else {
+                list.innerHTML = '<p class="text-xs text-slate-500 italic">No reports logged.</p>';
+            }
+        }
+
+        async function dismissReport(reportId) {
+            const { error } = await supabaseClient.from('reports').delete().eq('id', reportId);
+            if (!error) {
+                showToast("Report dismissed", "success");
+                refreshAdminReports();
+                refreshAdminStats();
+            } else {
+                showToast("Failed to dismiss report", "error");
+            }
+        }
+
+        async function toggleAdminRole(grant) {
+            const targetUsername = document.getElementById('admin-target-username').value.trim().toLowerCase();
+            if (!targetUsername) return showAlert("Admin Action", "Please enter a target username.");
+
+            const { error } = await supabaseClient.from('profiles').update({ is_admin: grant ? 1 : 0 }).eq('username', targetUsername);
+            if (error) showAlert("Error", error.message);
+            else {
+                showToast(`Successfully ${grant ? 'granted admin to' : 'revoked admin from'} @${targetUsername}`, "success");
+                refreshAdminStats();
+            }
+        }
+
+        async function purgeUserMessages() {
+            const targetUsername = document.getElementById('admin-target-username').value.trim().toLowerCase();
+            if (!targetUsername) return showAlert("Admin Action", "Please enter a target username.");
+
+            const { error } = await supabaseClient.from('chat_messages').delete().eq('username', targetUsername);
+            if (error) showAlert("Error", error.message);
+            else {
+                showToast(`Messages purged for @${targetUsername}`, "success");
+                loadChannelMessages();
+                refreshAdminStats();
+            }
+        }
+
+        async function deleteTargetAccount() {
+            const targetUsername = document.getElementById('admin-target-username').value.trim().toLowerCase();
+            if (!targetUsername) return showAlert("Admin Action", "Please enter a target username.");
+
+            await supabaseClient.from('chat_messages').delete().eq('username', targetUsername);
+            await supabaseClient.from('friends').delete().or(`user_id.eq.${currentUser.id},friend_id.eq.${currentUser.id}`);
+            const { error } = await supabaseClient.from('profiles').delete().eq('username', targetUsername);
+
+            if (error) showAlert("Error", error.message);
+            else {
+                showToast(`User @${targetUsername} deleted`, "success");
+                refreshAdminStats();
+            }
+        }
+
+        async function sendGlobalAnnouncement() {
+            const text = document.getElementById('admin-announcement-text').value.trim();
+            if (!text) return showAlert("Announcement Error", "Write announcement content before posting.");
+
+            const { error } = await supabaseClient.from('chat_messages').insert([{
+                user_id: currentUser.id,
+                username: currentUser.username,
+                channel_id: 'announcements',
+                message: `📢 GLOBAL SYSTEM ANNOUNCEMENT:\n${text}`
+            }]);
+
+            if (error) showAlert("Error", error.message);
+            else {
+                showToast("Global announcement posted!", "success");
+                document.getElementById('admin-announcement-text').value = '';
+                if (activeChannel === 'announcements') loadChannelMessages();
+                refreshAdminStats();
+            }
+        }
+
+        async function purgeActiveChannelMessages() {
+            const { error } = await supabaseClient.from('chat_messages').delete().eq('channel_id', activeChannel);
+            if (error) showAlert("Error", error.message);
+            else {
+                showToast(`Cleared channel #${activeChannel}`, "success");
+                loadChannelMessages();
+                refreshAdminStats();
+            }
+        }
+
+        function triggerReport(targetType, targetId) {
+            activeReportTarget = { targetType, targetId };
+            document.getElementById('report-reason-input').value = '';
+            document.getElementById('report-modal').classList.remove('hidden');
+        }
+
+        document.getElementById('submit-report-btn').addEventListener('click', async () => {
+            const reason = document.getElementById('report-reason-input').value.trim();
+            if (!reason) return showAlert("Report Notice", "Provide a reason for reporting.");
+
+            await supabaseClient.from('reports').insert([{
+                reporter_username: currentUser ? currentUser.username : 'Guest',
+                target_type: activeReportTarget.targetType,
+                target_id: String(activeReportTarget.targetId),
+                reason
+            }]);
+
+            showToast("Report submitted to system admins", "success");
+            document.getElementById('report-modal').classList.add('hidden');
+        });
+
+        document.getElementById('report-user-btn').addEventListener('click', () => {
+            const uname = document.getElementById('view-profile-uname').textContent.replace('@', '');
+            document.getElementById('view-profile-modal').classList.add('hidden');
+            triggerReport('user', uname);
+        });
 
         function openChannelInviteModalCurrent() {
             contextChannelId = activeChannel;
@@ -1601,6 +1755,29 @@
             document.getElementById('incall-side-drawer').classList.toggle('hidden');
         }
 
+        mediaFileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                selectedFile = e.target.files[0];
+                filePreviewName.textContent = `Attached Media: ${selectedFile.name} (${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)`;
+                filePreview.classList.remove('hidden');
+            }
+        });
+
+        document.getElementById('cancel-file-btn').addEventListener('click', () => {
+            selectedFile = null;
+            mediaFileInput.value = '';
+            filePreview.classList.add('hidden');
+        });
+
+        async function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
         async function appendMessageUI(msg) {
             if (document.getElementById(`msg-${msg.id}`)) return;
 
@@ -1655,10 +1832,30 @@
             let mediaContent = '';
             if (msg.media_url) {
                 const url = msg.media_url;
-                if (url.startsWith('data:image/') || url.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i)) {
-                    mediaContent = `<div class="mt-2"><img src="${escapeHTML(url)}" class="max-h-60 rounded-lg border border-slate-800 object-contain"></div>`;
+                const lowerUrl = url.toLowerCase();
+
+                if (lowerUrl.startsWith('data:video/') || lowerUrl.match(/\.(mp4|webm|ogg|mov|m4v)($|\?)/i)) {
+                    mediaContent = `
+                        <div class="mt-2">
+                            <video controls preload="metadata" class="w-full max-w-md max-h-72 rounded-xl border border-slate-800 bg-black shadow-lg shadow-black/40 object-contain overflow-hidden">
+                                <source src="${escapeHTML(url)}">
+                                Your browser does not support HTML video playback.
+                            </video>
+                        </div>
+                    `;
+                } else if (lowerUrl.startsWith('data:audio/') || lowerUrl.match(/\.(mp3|wav|ogg|m4a|aac|flac)($|\?)/i)) {
+                    mediaContent = `
+                        <div class="mt-2">
+                            <audio controls preload="metadata" class="w-full max-w-sm rounded-xl border border-slate-800 bg-slate-900 p-1">
+                                <source src="${escapeHTML(url)}">
+                                Your browser does not support audio playback.
+                            </audio>
+                        </div>
+                    `;
+                } else if (lowerUrl.startsWith('data:image/') || lowerUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i)) {
+                    mediaContent = `<div class="mt-2"><img src="${escapeHTML(url)}" class="max-h-60 rounded-xl border border-slate-800 object-contain shadow-md"></div>`;
                 } else {
-                    mediaContent = `<div class="mt-2"><a href="${escapeHTML(url)}" target="_blank" download="attachment" class="inline-block bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 text-xs px-3 py-1.5 rounded-lg border border-indigo-500/40 transition-colors">📥 Download Attachment</a></div>`;
+                    mediaContent = `<div class="mt-2"><a href="${escapeHTML(url)}" target="_blank" download="media_attachment" class="inline-flex items-center gap-1.5 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 text-xs px-3 py-1.5 rounded-lg border border-indigo-500/40 transition-colors">📥 Download Attachment File</a></div>`;
                 }
             }
 
@@ -1682,6 +1879,29 @@
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
         }
+
+        pfpUploadInput.addEventListener('change', async (e) => {
+            if (!e.target.files || !e.target.files[0] || !currentUser) return;
+            const file = e.target.files[0];
+            let avatar_url = null;
+
+            try {
+                const fileExt = file.name.split('.').pop();
+                const filePath = `avatars/${currentUser.id}_${Date.now()}.${fileExt}`;
+                const { error: uploadErr } = await supabaseClient.storage.from('chat-media').upload(filePath, file, { upsert: true });
+                if (uploadErr) throw uploadErr;
+
+                const { data: urlData } = supabaseClient.storage.from('chat-media').getPublicUrl(filePath);
+                avatar_url = urlData.publicUrl;
+            } catch(err) {
+                avatar_url = await fileToBase64(file);
+            }
+
+            await supabaseClient.from('profiles').update({ avatar_url }).eq('id', currentUser.id);
+            currentUser.avatar_url = avatar_url;
+            updateUserDisplayUI();
+            loadChannelMessages();
+        });
 
         document.getElementById('signup-btn').addEventListener('click', async () => {
             const username = document.getElementById('auth-username').value.trim();
@@ -2138,16 +2358,36 @@
         document.getElementById('chat-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const text = msgInput.value.trim();
-            if (!text || !currentUser) return;
+            if ((!text && !selectedFile) || !currentUser) return;
+
+            let mediaUrl = null;
+            if (selectedFile) {
+                try {
+                    const fileExt = selectedFile.name.split('.').pop();
+                    const filePath = `uploads/${currentUser.id}_${Date.now()}.${fileExt}`;
+                    const { error } = await supabaseClient.storage.from('chat-media').upload(filePath, selectedFile);
+                    if (error) throw error;
+
+                    const { data: urlData } = supabaseClient.storage.from('chat-media').getPublicUrl(filePath);
+                    mediaUrl = urlData.publicUrl;
+                } catch (err) {
+                    mediaUrl = await fileToBase64(selectedFile);
+                }
+            }
 
             await supabaseClient.from('chat_messages').insert([{
                 user_id: currentUser.id,
                 username: currentUser.username,
                 channel_id: activeChannel,
-                message: text
+                message: text,
+                media_url: mediaUrl
             }]);
 
             msgInput.value = '';
+            selectedFile = null;
+            mediaFileInput.value = '';
+            filePreview.classList.add('hidden');
+
             saveLastReadTimestamp(activeChannel);
             unreadCounts[activeChannel] = 0;
             delete unreadFirstMsgId[activeChannel];
