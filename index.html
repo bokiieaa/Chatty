@@ -1,27 +1,95 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark h-full bg-slate-950 text-slate-100">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mesh Chat</title>
-    <link id="favicon" rel="icon" type="image/png" href="icon.png">
+    <title>Mesh Chat - Video Edition</title>
+    <link rel="icon" type="image/png" href="icon.png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        indigo: {
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    },
+                    animation: {
+                        'pulse-glow': 'pulseGlow 2s infinite',
+                        'speaking-ring': 'speakingRing 1.2s infinite ease-in-out',
+                    },
+                    keyframes: {
+                        pulseGlow: {
+                            '0%, 100%': { boxShadow: '0 0 15px rgba(99, 102, 241, 0.4)' },
+                            '50%': { boxShadow: '0 0 5px rgba(99, 102, 241, 0.1)' },
+                        },
+                        speakingRing: {
+                            '0%, 100%': { boxShadow: '0 0 0 0px rgba(16, 185, 129, 0.7)' },
+                            '50%': { boxShadow: '0 0 0 8px rgba(16, 185, 129, 0.2)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        #chat-box::-webkit-scrollbar, #friends-list::-webkit-scrollbar, #admin-reports-list::-webkit-scrollbar, #requests-list::-webkit-scrollbar { width: 6px; }
-        #chat-box::-webkit-scrollbar-track, #friends-list::-webkit-scrollbar-track, #admin-reports-list::-webkit-scrollbar-track, #requests-list::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
-        #chat-box::-webkit-scrollbar-thumb, #friends-list::-webkit-scrollbar-thumb, #admin-reports-list::-webkit-scrollbar-thumb, #requests-list::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.5); border-radius: 9999px; }
+        /* Custom Scrollbar Styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        ::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.4); border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.7); }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-control {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .video-mirror {
+            transform: scaleX(-1);
+        }
+        .speaking-active {
+            border-color: #10b981 !important;
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.35) !important;
+        }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 h-screen w-screen flex flex-col md:flex-row font-sans overflow-hidden antialiased">
+<body class="bg-slate-950 text-slate-100 h-screen w-screen flex flex-col md:flex-row font-sans overflow-hidden antialiased select-none">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Universal Custom Dialog Modal (Replaces Native alert / confirm) -->
+    <div id="custom-dialog-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-4">
+            <h3 id="dialog-title" class="text-base font-bold text-slate-100">Notice</h3>
+            <p id="dialog-message" class="text-xs text-slate-300 leading-relaxed"></p>
+            <div id="dialog-buttons" class="flex gap-2 pt-2">
+                <button id="dialog-confirm-btn" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2 rounded-lg cursor-pointer transition-colors">OK</button>
+                <button id="dialog-cancel-btn" class="hidden flex-1 bg-slate-800 hover:bg-slate-700 text-xs font-bold py-2 rounded-lg cursor-pointer transition-colors">Cancel</button>
+            </div>
+        </div>
+    </div>
 
     <input type="file" id="pfp-upload-input" class="hidden" accept="image/*">
 
+    <!-- Context Menu for Channels -->
     <div id="channel-context-menu" class="hidden fixed z-50 bg-slate-900 border border-slate-800 rounded-lg shadow-xl p-1 text-xs w-40">
         <button id="context-invite-btn" class="w-full text-left px-3 py-1.5 hover:bg-indigo-600 hover:text-white rounded transition-colors cursor-pointer font-medium">📨 Invite User</button>
         <button id="context-mute-btn" class="w-full text-left px-3 py-1.5 hover:bg-indigo-600 hover:text-white rounded transition-colors cursor-pointer font-medium">🔕 Mute Channel</button>
     </div>
 
+    <!-- Server Invite Modal -->
     <div id="invite-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-4">
             <h3 class="text-sm font-bold text-slate-100">Send Server Invite (to DMs)</h3>
@@ -40,6 +108,7 @@
         </div>
     </div>
 
+    <!-- Admin Panel Modal -->
     <div id="admin-panel-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-indigo-500/50 p-6 rounded-2xl max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b border-slate-800 pb-2">
@@ -113,6 +182,7 @@
         </div>
     </div>
 
+    <!-- Report User Modal -->
     <div id="report-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-4">
             <h3 class="text-sm font-bold text-slate-100">Report Content or User</h3>
@@ -124,6 +194,7 @@
         </div>
     </div>
 
+    <!-- User Directory Modal -->
     <div id="presence-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full shadow-2xl space-y-4 max-h-[80vh] flex flex-col">
             <div class="flex justify-between items-center border-b border-slate-800 pb-3">
@@ -143,20 +214,24 @@
         </div>
     </div>
 
+    <!-- Incoming Call Modal -->
     <div id="incoming-call-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-indigo-500 p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-4 text-center">
-            <div class="w-16 h-16 rounded-full bg-indigo-600 mx-auto flex items-center justify-center text-xl font-bold animate-pulse">📞</div>
+            <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 mx-auto flex items-center justify-center text-2xl font-bold animate-pulse text-white shadow-lg shadow-indigo-500/30">
+                📹
+            </div>
             <div>
-                <h3 class="text-base font-bold text-slate-100">Incoming Voice Call</h3>
-                <p id="incoming-caller-text" class="text-xs text-indigo-400 mt-1"></p>
+                <h3 class="text-base font-bold text-slate-100">Incoming Video Call</h3>
+                <p id="incoming-caller-text" class="text-xs text-indigo-400 mt-1 font-medium"></p>
             </div>
             <div class="flex gap-2">
-                <button id="accept-call-btn" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-xs font-bold py-2.5 rounded-lg cursor-pointer">Accept</button>
-                <button id="reject-call-btn" class="flex-1 bg-rose-600 hover:bg-rose-500 text-xs font-bold py-2.5 rounded-lg cursor-pointer">Decline</button>
+                <button id="accept-call-btn" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-xs font-bold py-2.5 rounded-lg cursor-pointer transition-colors">Accept Call</button>
+                <button id="reject-call-btn" class="flex-1 bg-rose-600 hover:bg-rose-500 text-xs font-bold py-2.5 rounded-lg cursor-pointer transition-colors">Decline</button>
             </div>
         </div>
     </div>
 
+    <!-- User Profile View Modal -->
     <div id="view-profile-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-2xl max-w-sm w-full shadow-2xl space-y-4 text-center">
             <div id="view-profile-avatar" class="w-20 h-20 rounded-full bg-indigo-600 mx-auto flex items-center justify-center text-xl font-bold overflow-hidden border border-slate-700">?</div>
@@ -171,6 +246,7 @@
         </div>
     </div>
 
+    <!-- Edit Profile Modal -->
     <div id="profile-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-2xl max-w-md w-full shadow-2xl space-y-4">
             <h2 class="text-xl font-bold text-slate-100">Edit Profile & Status</h2>
@@ -204,22 +280,236 @@
         </div>
     </div>
 
-    <div id="call-bar" class="hidden bg-indigo-950/80 border-b border-indigo-500/30 px-4 py-2.5 flex items-center justify-between z-20 shrink-0">
-        <div class="flex items-center gap-3 min-w-0">
-            <span class="relative flex h-3 w-3 shrink-0">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-            </span>
-            <span id="call-status" class="text-xs font-bold text-indigo-200 truncate">Connected</span>
-            <audio id="remote-audio" autoplay></audio>
+
+    <!-- ========================================================= -->
+    <!-- INPUT & DEVICE SELECTION DRAWER MODAL                     -->
+    <!-- ========================================================= -->
+    <div id="device-settings-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md w-full shadow-2xl space-y-5">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                    ⚙️ Audio & Video Input/Output Settings
+                </h3>
+                <button onclick="document.getElementById('device-settings-modal').classList.add('hidden')" class="text-slate-500 hover:text-slate-300 font-bold">&times;</button>
+            </div>
+
+            <!-- Mic Selector -->
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Microphone (Audio Input)</label>
+                <select id="mic-device-select" class="w-full bg-slate-950 border border-slate-800 text-xs rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-indigo-500">
+                    <option value="">Default Microphone</option>
+                </select>
+                <!-- Mic Live VU Meter -->
+                <div class="mt-2 flex items-center gap-2">
+                    <span class="text-[10px] text-slate-400">Mic Test:</span>
+                    <div class="flex-1 bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
+                        <div id="device-mic-vu" class="bg-emerald-500 h-full w-0 transition-all duration-75"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Camera Selector -->
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Camera (Video Input)</label>
+                <select id="cam-device-select" class="w-full bg-slate-950 border border-slate-800 text-xs rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-indigo-500">
+                    <option value="">Default Camera</option>
+                </select>
+            </div>
+
+            <!-- Audio Output Speaker Selector -->
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Speaker (Audio Output)</label>
+                <select id="speaker-device-select" class="w-full bg-slate-950 border border-slate-800 text-xs rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-indigo-500">
+                    <option value="">Default Speaker</option>
+                </select>
+                <p id="speaker-support-notice" class="text-[10px] text-slate-500 mt-1 italic">Audio output selection supported on Chrome/Edge browsers.</p>
+            </div>
+
+            <!-- Local Mirror Switch -->
+            <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950 border border-slate-800">
+                <span class="text-xs font-medium text-slate-300">Mirror My Video Preview</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="mirror-video-checkbox" checked class="sr-only peer">
+                    <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+            </div>
+
+            <div class="pt-2 flex justify-end">
+                <button onclick="document.getElementById('device-settings-modal').classList.add('hidden')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-xl transition-colors cursor-pointer">
+                    Apply & Close
+                </button>
+            </div>
         </div>
-        <button id="end-call-btn" class="bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer shrink-0 ml-2">End Call</button>
     </div>
 
+
+    <!-- ========================================================= -->
+    <!-- WEBRTC FULL-SCREEN VIDEO CALL STAGE OVERLAY               -->
+    <!-- ========================================================= -->
+    <div id="video-call-stage" class="hidden fixed inset-0 z-40 bg-slate-950 flex flex-col overflow-hidden">
+        
+        <!-- Video Top Header Bar -->
+        <header class="h-16 px-4 md:px-6 flex items-center justify-between glass-panel z-20 shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-bold text-xs text-white shadow-lg">
+                    VC
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span id="call-room-title" class="text-sm font-bold text-slate-100">Live Video Session</span>
+                        <span id="call-type-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Loopback Mode</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-[11px] text-slate-400">
+                        <span id="call-duration-timer" class="font-mono text-emerald-400">00:00</span>
+                        <span>&bull;</span>
+                        <span id="call-quality-badge" class="flex items-center gap-1 text-slate-300">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Signal HD
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Header Quick Actions -->
+            <div class="flex items-center gap-2">
+                <button onclick="toggleDeviceSettingsModal()" class="p-2.5 glass-control rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors" title="Device Settings">
+                    ⚙️
+                </button>
+                <button id="toggle-incall-chat-btn" class="p-2.5 glass-control rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors relative" title="In-Call Chat">
+                    💬 <span id="incall-unread-dot" class="hidden absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500"></span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Video Area & Side Panel Container -->
+        <div class="flex-1 flex min-h-0 relative overflow-hidden">
+            
+            <!-- Video Grid Grid Stage -->
+            <div class="flex-1 p-4 flex items-center justify-center min-h-0 relative">
+                <div id="video-grid" class="w-full h-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-4 items-center justify-center">
+                    
+                    <!-- Remote Peer Participant Tile -->
+                    <div id="remote-participant-tile" class="relative w-full h-full min-h-[220px] max-h-[75vh] bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex items-center justify-center shadow-2xl group">
+                        
+                        <video id="remote-video" autoplay playsinline class="w-full h-full object-cover"></video>
+                        <audio id="remote-audio" autoplay></audio>
+                        
+                        <!-- Remote Avatar Fallback -->
+                        <div id="remote-avatar-fallback" class="hidden absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-4">
+                            <div id="remote-avatar-ring" class="w-28 h-28 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-3xl font-bold text-white shadow-2xl border-4 border-slate-800 transition-all duration-150">
+                                <span id="remote-avatar-initials">RP</span>
+                            </div>
+                            <p id="remote-avatar-name" class="text-sm font-semibold text-slate-300 mt-3">Remote Participant</p>
+                        </div>
+
+                        <!-- Tile Badges -->
+                        <div class="absolute top-3 left-3 flex items-center gap-2">
+                            <span id="remote-name-badge" class="glass-panel px-3 py-1 rounded-lg text-xs font-semibold text-white shadow">
+                                Remote Peer
+                            </span>
+                        </div>
+                        <div class="absolute top-3 right-3">
+                            <span id="remote-mic-status-badge" class="glass-panel p-1.5 rounded-lg text-xs text-rose-400 hidden">
+                                🔇 Muted
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Local User Participant Tile -->
+                    <div id="local-participant-tile" class="relative w-full h-full min-h-[220px] max-h-[75vh] bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex items-center justify-center shadow-2xl group">
+                        
+                        <video id="local-video" autoplay playsinline muted class="w-full h-full object-cover video-mirror"></video>
+                        
+                        <!-- Local Avatar Fallback -->
+                        <div id="local-avatar-fallback" class="hidden absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-4">
+                            <div id="local-avatar-ring" class="w-28 h-28 rounded-full bg-gradient-to-tr from-indigo-600 to-indigo-800 flex items-center justify-center text-3xl font-bold text-white shadow-2xl border-4 border-slate-800 transition-all duration-150">
+                                <span id="local-avatar-initials">ME</span>
+                            </div>
+                            <p id="local-avatar-name" class="text-sm font-semibold text-slate-300 mt-3">You</p>
+                        </div>
+
+                        <!-- Tile Badges -->
+                        <div class="absolute top-3 left-3 flex items-center gap-2">
+                            <span id="local-name-badge" class="glass-panel px-3 py-1 rounded-lg text-xs font-semibold text-white shadow">
+                                You (Host)
+                            </span>
+                        </div>
+                        <div class="absolute top-3 right-3 flex items-center gap-1.5">
+                            <span id="local-mic-badge" class="glass-panel p-1.5 rounded-lg text-xs text-emerald-400">
+                                🎙️
+                            </span>
+                            <span id="local-cam-badge" class="glass-panel p-1.5 rounded-lg text-xs text-emerald-400">
+                                📹
+                            </span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- In-Call Side Chat Drawer -->
+            <div id="incall-side-drawer" class="hidden w-80 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0 z-30">
+                <div class="p-3 border-b border-slate-800 flex items-center justify-between">
+                    <h4 class="text-xs font-bold text-slate-200 uppercase tracking-wider">In-Call Room Chat</h4>
+                    <button onclick="toggleInCallChat()" class="text-slate-500 hover:text-slate-300 font-bold">&times;</button>
+                </div>
+                <div id="incall-messages-container" class="flex-1 p-3 overflow-y-auto space-y-3 text-xs">
+                    <p class="text-[11px] text-slate-500 italic text-center">In-call messages will appear here...</p>
+                </div>
+                <form id="incall-chat-form" class="p-3 border-t border-slate-800 flex gap-2">
+                    <input type="text" id="incall-msg-input" placeholder="Type message..." class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3 py-2 rounded-lg">Send</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Floating Glassmorphic Call Action Control Bar -->
+        <div class="h-20 flex items-center justify-center p-4 z-30 shrink-0 pointer-events-none">
+            <div class="glass-panel px-6 py-3 rounded-2xl flex items-center gap-3 md:gap-4 shadow-2xl pointer-events-auto">
+                
+                <!-- Toggle Mic Button -->
+                <button id="call-btn-mic" onclick="toggleMicMute()" class="p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white shadow-lg transition-all transform active:scale-95" title="Toggle Mic (Ctrl+M)">
+                    <span id="icon-mic-on" class="text-lg">🎙️</span>
+                    <span id="icon-mic-off" class="text-lg hidden text-rose-400">🔇</span>
+                </button>
+
+                <!-- Toggle Camera Button -->
+                <button id="call-btn-cam" onclick="toggleCamMute()" class="p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white shadow-lg transition-all transform active:scale-95" title="Toggle Camera (Ctrl+E)">
+                    <span id="icon-cam-on" class="text-lg">📹</span>
+                    <span id="icon-cam-off" class="text-lg hidden text-rose-400">🚫</span>
+                </button>
+
+                <!-- Toggle Screen Share Button -->
+                <button id="call-btn-screen" onclick="toggleScreenShare()" class="p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white shadow-lg transition-all transform active:scale-95" title="Share Screen">
+                    <span class="text-lg">🖥️</span>
+                </button>
+
+                <!-- Device Selector Quick Gear -->
+                <button onclick="toggleDeviceSettingsModal()" class="p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white shadow-lg transition-all transform active:scale-95" title="Audio / Video Settings">
+                    <span class="text-lg">⚙️</span>
+                </button>
+
+                <!-- Fullscreen Toggle Button -->
+                <button onclick="toggleCallFullscreen()" class="p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white shadow-lg transition-all transform active:scale-95" title="Toggle Fullscreen">
+                    <span class="text-lg">⛶</span>
+                </button>
+
+                <div class="h-8 w-px bg-slate-800 mx-1"></div>
+
+                <!-- Leave / End Call Button -->
+                <button onclick="endActiveVideoCall()" class="px-5 py-3.5 rounded-xl bg-rose-600 hover:bg-rose-500 font-bold text-white shadow-lg shadow-rose-600/30 transition-all transform active:scale-95 flex items-center gap-2 text-xs">
+                    <span>📞</span> End Call
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- Auth Access Modal -->
     <div id="auth-modal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-2xl max-w-md w-full shadow-2xl space-y-5">
             <div class="text-center">
-                <h2 class="text-2xl font-black bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">Mesh Network Access</h2>
+                <h2 class="text-2xl font-black bg-gradient-to-r from-indigo-400 via-purple-400 to-emerald-400 bg-clip-text text-transparent">Mesh Network Access</h2>
                 <p id="auth-subtitle" class="text-xs text-slate-400 mt-1">Rules: lowercase letters, numbers, _ and . only (no spaces, no capitals)</p>
             </div>
             
@@ -242,18 +532,27 @@
         </div>
     </div>
 
+
+    <!-- ========================================================= -->
+    <!-- MAIN APPLICATION SIDEBAR & CHAT WORKSPACE                -->
+    <!-- ========================================================= -->
     <aside class="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between shrink-0 h-48 md:h-full">
         <div class="p-4 space-y-4 overflow-y-auto flex-1">
             <div class="flex items-center justify-between">
                 <span class="font-bold text-sm text-slate-200 flex items-center gap-2">
                     <span id="self-standing-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
-                    Mesh Chat
+                    Mesh Chat <span class="text-[10px] text-indigo-400 font-mono">v2.0</span>
                 </span>
                 <div class="flex gap-1">
                     <button id="open-admin-panel-btn" class="hidden text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded transition-colors cursor-pointer">⚡ Panel</button>
                     <button id="open-profile-btn" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded transition-colors cursor-pointer">⚙️ Profile</button>
                 </div>
             </div>
+
+            <!-- Instant Loopback Test Call Launcher Button -->
+            <button onclick="startLoopbackVideoTest()" class="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition-all cursor-pointer">
+                <span>📹</span> Test Cam & Mic (Loopback)
+            </button>
 
             <div>
                 <div class="flex items-center justify-between mb-1">
@@ -306,6 +605,7 @@
         </div>
     </aside>
 
+    <!-- Main Workspace Panel -->
     <main class="flex-1 flex flex-col bg-slate-950 min-w-0 overflow-hidden h-full">
         <header class="p-3 sm:p-4 border-b border-slate-800 bg-slate-900/40 flex items-center justify-between shrink-0">
             <div class="flex items-center gap-2">
@@ -319,8 +619,14 @@
                     <span id="online-counter-text" class="font-bold">0 Online</span>
                 </button>
 
+                <button onclick="toggleDeviceSettingsModal()" class="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-800 transition-colors cursor-pointer" title="Input/Output Settings">
+                    ⚙️ Devices
+                </button>
+
                 <div id="call-controls" class="flex gap-2">
-                    <button id="call-btn" onclick="startCall()" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer">📞 Call</button>
+                    <button id="call-btn" onclick="startCall()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
+                        <span>📹</span> Video Call
+                    </button>
                 </div>
             </div>
         </header>
@@ -353,40 +659,52 @@
         </footer>
     </main>
 
+    <!-- ========================================================= -->
+    <!-- APPLICATION LOGIC & WEBRTC ENGINE                        -->
+    <!-- ========================================================= -->
     <script>
+        // Supabase Client Config
         const SUPABASE_URL = "https://yygscvzdlfudhjmyhuxu.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_AAAy7XWb589B4sBcR5Sqjw__sOLyOlE";
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+        // Core Application State Variables
         let currentUser = null;
         let activeChannel = 'general';
-        let activeReplyId = null;
-        let activeReplyUser = null;
-        let activeReplyText = null;
         let selectedFile = null;
         let knownMessageIds = new Set();
         let fastPollingInterval = null;
         let userProfileCache = new Map();
         let userFriends = new Set();
-
         let onlineUsersMap = new Map();
         let allKnownUsers = new Set();
         let manualStanding = 'online';
         let typingTimeout = null;
         let presenceChannel = null;
-
         const USERNAME_REGEX = /^[a-z0-9_.]+$/;
 
-        let contextChannelId = null;
-        let contextChannelName = null;
-        let activeReportTarget = null;
-        let pendingOfferPayload = null;
-
-        let peerConnection = null;
+        // Video & Media Call State Variables
         let localStream = null;
+        let peerConnection = null;
+        let displayStream = null;
         let activeCallTarget = null;
         let personalSignalingChannel = null;
+        let pendingOfferPayload = null;
+        let isCallActive = false;
+        let isLoopbackMode = false;
+        let isMicMuted = false;
+        let isCamMuted = false;
+        let isScreenSharing = false;
+        let callStartTime = null;
+        let callTimerInterval = null;
 
+        // Web Audio API & Visualizer System
+        let audioCtx = null;
+        let localAudioAnalyser = null;
+        let remoteAudioAnalyser = null;
+        let audioVUInterval = null;
+
+        // WebRTC STUN Config
         const rtcConfig = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -394,14 +712,12 @@
             ]
         };
 
+        // DOM Element Cache
         const authModal = document.getElementById('auth-modal');
         const authError = document.getElementById('auth-error');
         const profileModal = document.getElementById('profile-modal');
         const chatBox = document.getElementById('chat-box');
-        const chatFooter = document.getElementById('chat-footer');
-        const chatForm = document.getElementById('chat-form');
         const msgInput = document.getElementById('msg-input');
-        const replyPreview = document.getElementById('reply-preview');
         const mediaFileInput = document.getElementById('media-file-input');
         const filePreview = document.getElementById('file-preview');
         const filePreviewName = document.getElementById('file-preview-name');
@@ -410,48 +726,688 @@
         const mentionAutocomplete = document.getElementById('mention-autocomplete');
         const typingIndicator = document.getElementById('typing-indicator');
 
-        window.addEventListener('blur', () => {
-            if (currentUser && manualStanding === 'online') updateStandingState('idle');
-        });
-        window.addEventListener('focus', () => {
-            if (currentUser && manualStanding === 'online') updateStandingState('online');
+        // Video Stage Elements
+        const videoCallStage = document.getElementById('video-call-stage');
+        const localVideo = document.getElementById('local-video');
+        const remoteVideo = document.getElementById('remote-video');
+        const remoteAudio = document.getElementById('remote-audio');
+        const localAvatarFallback = document.getElementById('local-avatar-fallback');
+        const remoteAvatarFallback = document.getElementById('remote-avatar-fallback');
+
+        // Device Dropdowns
+        const micDeviceSelect = document.getElementById('mic-device-select');
+        const camDeviceSelect = document.getElementById('cam-device-select');
+        const speakerDeviceSelect = document.getElementById('speaker-device-select');
+
+
+        // =========================================================
+        // UTILITY HELPERS: TOASTS, SOUND SYNTHESIZER & DIALOGS
+        // =========================================================
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgClass = type === 'error' ? 'bg-rose-600' : type === 'success' ? 'bg-emerald-600' : 'bg-indigo-600';
+            toast.className = `${bgClass} text-white px-4 py-2.5 rounded-xl text-xs font-semibold shadow-2xl transition-all duration-300 transform translate-x-10 opacity-0 flex items-center gap-2 pointer-events-auto`;
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.remove('translate-x-10', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-x-10');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function showAlert(title, message) {
+            document.getElementById('dialog-title').textContent = title;
+            document.getElementById('dialog-message').textContent = message;
+            document.getElementById('dialog-cancel-btn').classList.add('hidden');
+            const modal = document.getElementById('custom-dialog-modal');
+            modal.classList.remove('hidden');
+            
+            return new Promise((resolve) => {
+                document.getElementById('dialog-confirm-btn').onclick = () => {
+                    modal.classList.add('hidden');
+                    resolve(true);
+                };
+            });
+        }
+
+        function showConfirm(title, message) {
+            document.getElementById('dialog-title').textContent = title;
+            document.getElementById('dialog-message').textContent = message;
+            const cancelBtn = document.getElementById('dialog-cancel-btn');
+            cancelBtn.classList.remove('hidden');
+            const modal = document.getElementById('custom-dialog-modal');
+            modal.classList.remove('hidden');
+            
+            return new Promise((resolve) => {
+                document.getElementById('dialog-confirm-btn').onclick = () => {
+                    modal.classList.add('hidden');
+                    resolve(true);
+                };
+                cancelBtn.onclick = () => {
+                    modal.classList.add('hidden');
+                    resolve(false);
+                };
+            });
+        }
+
+        // Web Audio Synthesizer for Audio Chimes
+        function playChime(type) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                if (type === 'join') {
+                    osc.frequency.setValueAtTime(440, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.3);
+                } else if (type === 'leave') {
+                    osc.frequency.setValueAtTime(880, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.3);
+                } else if (type === 'toggle') {
+                    osc.frequency.setValueAtTime(600, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.1);
+                }
+            } catch(e) {}
+        }
+
+
+        // =========================================================
+        // DEVICE ENUMERATION & DYNAMIC TRACK HOT-SWAPPING
+        // =========================================================
+
+        async function enumerateDevices() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                micDeviceSelect.innerHTML = '<option value="">Default Microphone</option>';
+                camDeviceSelect.innerHTML = '<option value="">Default Camera</option>';
+                speakerDeviceSelect.innerHTML = '<option value="">Default Speaker</option>';
+
+                devices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.textContent = device.label || `${device.kind} (${device.deviceId.substring(0, 5)}...)`;
+                    
+                    if (device.kind === 'audioinput') micDeviceSelect.appendChild(option);
+                    else if (device.kind === 'videoinput') camDeviceSelect.appendChild(option);
+                    else if (device.kind === 'audiooutput') speakerDeviceSelect.appendChild(option);
+                });
+            } catch (err) {
+                console.warn("Error enumerating devices:", err);
+            }
+        }
+
+        // Listen for plugged/unplugged hardware devices
+        if (navigator.mediaDevices && navigator.mediaDevices.ondevicechange !== undefined) {
+            navigator.mediaDevices.ondevicechange = () => {
+                enumerateDevices();
+                showToast("Media hardware devices updated", "info");
+            };
+        }
+
+        // Switch Microphone Device Live
+        micDeviceSelect.addEventListener('change', async () => {
+            const deviceId = micDeviceSelect.value;
+            if (!localStream) return;
+            try {
+                const constraints = { audio: deviceId ? { deviceId: { exact: deviceId } } : true };
+                const newAudioStream = await navigator.mediaDevices.getUserMedia(constraints);
+                const newTrack = newAudioStream.getAudioTracks()[0];
+                
+                const oldTrack = localStream.getAudioTracks()[0];
+                if (oldTrack) {
+                    localStream.removeTrack(oldTrack);
+                    oldTrack.stop();
+                }
+                localStream.addTrack(newTrack);
+
+                // Hot-swap track on active WebRTC PeerConnection
+                if (peerConnection) {
+                    const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
+                    if (sender) sender.replaceTrack(newTrack);
+                }
+
+                showToast("Microphone updated", "success");
+            } catch (err) {
+                showAlert("Microphone Error", "Could not switch to selected microphone.");
+            }
         });
 
-        window.addEventListener('click', (e) => {
-            if (!e.target.closest('#mention-autocomplete') && e.target !== msgInput) mentionAutocomplete.classList.add('hidden');
-            contextMenu.classList.add('hidden');
+        // Switch Camera Device Live
+        camDeviceSelect.addEventListener('change', async () => {
+            const deviceId = camDeviceSelect.value;
+            if (!localStream || isScreenSharing) return;
+            try {
+                const constraints = { video: deviceId ? { deviceId: { exact: deviceId } } : true };
+                const newVideoStream = await navigator.mediaDevices.getUserMedia(constraints);
+                const newTrack = newVideoStream.getVideoTracks()[0];
+                
+                const oldTrack = localStream.getVideoTracks()[0];
+                if (oldTrack) {
+                    localStream.removeTrack(oldTrack);
+                    oldTrack.stop();
+                }
+                localStream.addTrack(newTrack);
+                localVideo.srcObject = localStream;
+
+                // Hot-swap track on active WebRTC PeerConnection
+                if (peerConnection) {
+                    const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+                    if (sender) sender.replaceTrack(newTrack);
+                }
+
+                showToast("Camera updated", "success");
+            } catch (err) {
+                showAlert("Camera Error", "Could not switch to selected camera.");
+            }
         });
 
-        function getMutedChannels() {
-            try { return JSON.parse(localStorage.getItem('muted_channels') || '{}'); } catch(e) { return {}; }
-        }
-        function setMutedChannels(muted) { localStorage.setItem('muted_channels', JSON.stringify(muted)); }
-        function isChannelMuted(channelId) {
-            if (channelId === 'announcements') return false;
-            return !!getMutedChannels()[channelId];
-        }
-        function toggleMuteChannel(channelId) {
-            if (channelId === 'announcements') return alert("Announcements cannot be muted.");
-            const muted = getMutedChannels();
-            muted[channelId] = !muted[channelId];
-            setMutedChannels(muted);
-            updateMuteUI();
-            loadChannels();
-        }
-        function toggleMuteCurrentChannel() { toggleMuteChannel(activeChannel); }
-        function updateMuteUI() {
-            const btn = document.getElementById('header-mute-btn');
-            if (activeChannel === 'announcements') { btn.style.display = 'none'; return; }
-            btn.style.display = 'inline-block';
-            btn.textContent = isChannelMuted(activeChannel) ? "🔔 Unmute" : "🔕 Mute";
+        // Switch Audio Output Device (Speakers) using setSinkId
+        speakerDeviceSelect.addEventListener('change', async () => {
+            const sinkId = speakerDeviceSelect.value;
+            if (typeof remoteAudio.setSinkId === 'function') {
+                try {
+                    await remoteAudio.setSinkId(sinkId);
+                    showToast("Audio output speaker updated", "success");
+                } catch (err) {
+                    showAlert("Speaker Error", "Failed to set audio output device.");
+                }
+            } else {
+                document.getElementById('speaker-support-notice').textContent = "setSinkId is not supported in this browser.";
+            }
+        });
+
+        // Toggle Video Preview Mirror Effect
+        document.getElementById('mirror-video-checkbox').addEventListener('change', (e) => {
+            if (e.target.checked) localVideo.classList.add('video-mirror');
+            else localVideo.classList.remove('video-mirror');
+        });
+
+        function toggleDeviceSettingsModal() {
+            enumerateDevices();
+            document.getElementById('device-settings-modal').classList.toggle('hidden');
         }
 
-        async function hashPassword(password) {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(password);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+        // =========================================================
+        // AUDIO ANALYSER & VISUALIZER SYSTEM
+        // =========================================================
+
+        function initAudioAnalysers() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                if (localStream && localStream.getAudioTracks().length > 0) {
+                    const localSource = audioCtx.createMediaStreamSource(localStream);
+                    localAudioAnalyser = audioCtx.createAnalyser();
+                    localAudioAnalyser.fftSize = 64;
+                    localSource.connect(localAudioAnalyser);
+                }
+
+                if (audioVUInterval) clearInterval(audioVUInterval);
+                audioVUInterval = setInterval(updateAudioVU, 80);
+            } catch(e) {
+                console.warn("Audio Context error:", e);
+            }
         }
+
+        function updateAudioVU() {
+            // Local Microphone VU bar in settings & speaking ring fallback
+            if (localAudioAnalyser && !isMicMuted) {
+                const dataArray = new Uint8Array(localAudioAnalyser.frequencyBinCount);
+                localAudioAnalyser.getByteFrequencyData(dataArray);
+                let sum = 0;
+                for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+                const average = sum / dataArray.length;
+
+                const vuBar = document.getElementById('device-mic-vu');
+                if (vuBar) vuBar.style.width = `${Math.min(100, average * 2)}%`;
+
+                const localRing = document.getElementById('local-avatar-ring');
+                if (average > 15) localRing.classList.add('speaking-active');
+                else localRing.classList.remove('speaking-active');
+            } else {
+                const vuBar = document.getElementById('device-mic-vu');
+                if (vuBar) vuBar.style.width = '0%';
+                const localRing = document.getElementById('local-avatar-ring');
+                if (localRing) localRing.classList.remove('speaking-active');
+            }
+        }
+
+
+        // =========================================================
+        // WEBRTC CALL ENGINE & LOOPBACK TEST CONTROLLER
+        // =========================================================
+
+        async function acquireLocalMedia() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 } }
+                });
+                localVideo.srcObject = localStream;
+                initAudioAnalysers();
+                enumerateDevices();
+                return true;
+            } catch (err) {
+                console.warn("Video/Audio device access warning:", err);
+                // Fallback to audio only if camera is unavailable
+                try {
+                    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                    localVideo.srcObject = null;
+                    initAudioAnalysers();
+                    isCamMuted = true;
+                    updateCamMuteUI();
+                    return true;
+                } catch (audioErr) {
+                    showAlert("Media Permission Required", "Camera & Microphone permissions are needed to start a video call.");
+                    return false;
+                }
+            }
+        }
+
+        // Instant One-Click Local Video Loopback Test Mode
+        async function startLoopbackVideoTest() {
+            const mediaOk = await acquireLocalMedia();
+            if (!mediaOk) return;
+
+            isLoopbackMode = true;
+            isCallActive = true;
+            activeCallTarget = "Local Loopback";
+
+            // Configure UI for Loopback Mode
+            document.getElementById('call-room-title').textContent = "Local Hardware & Video Test";
+            document.getElementById('call-type-badge').textContent = "Loopback Test";
+            document.getElementById('remote-name-badge').textContent = "Loopback Peer (Simulated)";
+            document.getElementById('local-name-badge').textContent = `${currentUser ? currentUser.display_name || currentUser.username : 'You'} (Host)`;
+
+            // Mirror local stream onto simulated remote video element for instant loopback preview
+            remoteVideo.srcObject = localStream;
+
+            setupCallUIState();
+            playChime('join');
+            showToast("Loopback Test Mode Active!", "success");
+        }
+
+        // Real Multi-User WebRTC Call Initialization
+        async function startCall() {
+            let targetFriend = null;
+            if (activeChannel.startsWith('dm_')) {
+                const parts = activeChannel.replace('dm_', '').split('||');
+                targetFriend = parts.find(u => u !== currentUser.username);
+            }
+            if (!targetFriend) {
+                return showAlert("Direct Message Required", "You can start direct WebRTC video calls inside DM chats with friends, or click 'Test Cam & Mic (Loopback)' to test instantly.");
+            }
+
+            const mediaOk = await acquireLocalMedia();
+            if (!mediaOk) return;
+
+            isLoopbackMode = false;
+            isCallActive = true;
+            activeCallTarget = targetFriend;
+
+            document.getElementById('call-room-title').textContent = `Video Call: @${targetFriend}`;
+            document.getElementById('call-type-badge').textContent = "Live P2P WebRTC";
+            document.getElementById('remote-name-badge').textContent = `@${targetFriend}`;
+
+            setupPeerConnection(targetFriend);
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+
+            sendSignal(targetFriend, { type: 'offer', offer, callerUsername: currentUser.username });
+
+            setupCallUIState();
+            playChime('join');
+            showToast(`Calling @${targetFriend}...`, "info");
+        }
+
+        function setupPeerConnection(targetUsername) {
+            peerConnection = new RTCPeerConnection(rtcConfig);
+            
+            peerConnection.onicecandidate = (e) => {
+                if (e.candidate) {
+                    sendSignal(targetUsername, { type: 'ice-candidate', candidate: e.candidate });
+                }
+            };
+
+            peerConnection.ontrack = (e) => {
+                if (remoteVideo.srcObject !== e.streams[0]) {
+                    remoteVideo.srcObject = e.streams[0];
+                    remoteAudio.srcObject = e.streams[0];
+                }
+            };
+
+            peerConnection.onconnectionstatechange = () => {
+                const state = peerConnection.connectionState;
+                const qualityBadge = document.getElementById('call-quality-badge');
+                if (state === 'connected') {
+                    qualityBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Signal HD`;
+                } else if (state === 'connecting') {
+                    qualityBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span> Connecting...`;
+                } else if (state === 'disconnected' || state === 'failed') {
+                    qualityBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> Disconnected`;
+                }
+            };
+        }
+
+        // Signaling via Supabase Realtime Channels
+        function listenToPersonalSignaling() {
+            personalSignalingChannel = supabaseClient.channel(`user-signal:${currentUser.username}`);
+            personalSignalingChannel.on('broadcast', { event: 'signal' }, async ({ payload }) => {
+                if (payload.type === 'offer') {
+                    pendingOfferPayload = payload;
+                    document.getElementById('incoming-caller-text').textContent = `@${payload.callerUsername} is calling you for a video session...`;
+                    document.getElementById('incoming-call-modal').classList.remove('hidden');
+                } else if (payload.type === 'answer' && peerConnection) {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.answer));
+                    showToast("Call Connected!", "success");
+                } else if (payload.type === 'ice-candidate' && peerConnection) {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate));
+                } else if (payload.type === 'end-call') {
+                    showToast("Call ended by remote peer", "info");
+                    endActiveVideoCall(false);
+                }
+            }).subscribe();
+        }
+
+        function sendSignal(targetUsername, payload) {
+            supabaseClient.channel(`user-signal:${targetUsername}`).send({ type: 'broadcast', event: 'signal', payload });
+        }
+
+        // Accept Incoming Call
+        document.getElementById('accept-call-btn').addEventListener('click', async () => {
+            document.getElementById('incoming-call-modal').classList.add('hidden');
+            if (!pendingOfferPayload) return;
+            const payload = pendingOfferPayload;
+            
+            const mediaOk = await acquireLocalMedia();
+            if (!mediaOk) return;
+
+            isLoopbackMode = false;
+            isCallActive = true;
+            activeCallTarget = payload.callerUsername;
+
+            document.getElementById('call-room-title').textContent = `Video Call: @${payload.callerUsername}`;
+            document.getElementById('call-type-badge').textContent = "Live P2P WebRTC";
+            document.getElementById('remote-name-badge').textContent = `@${payload.callerUsername}`;
+
+            setupPeerConnection(payload.callerUsername);
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.offer));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+
+            sendSignal(payload.callerUsername, { type: 'answer', answer });
+
+            setupCallUIState();
+            playChime('join');
+        });
+
+        // Reject Incoming Call
+        document.getElementById('reject-call-btn').addEventListener('click', () => {
+            document.getElementById('incoming-call-modal').classList.add('hidden');
+            if (pendingOfferPayload) sendSignal(pendingOfferPayload.callerUsername, { type: 'end-call' });
+            pendingOfferPayload = null;
+        });
+
+        // Setup Call UI Overlay and Timers
+        function setupCallUIState() {
+            videoCallStage.classList.remove('hidden');
+            callStartTime = Date.now();
+            if (callTimerInterval) clearInterval(callTimerInterval);
+            callTimerInterval = setInterval(updateCallTimer, 1000);
+
+            // Update Avatar Initial Fallbacks
+            const myInitials = (currentUser ? (currentUser.display_name || currentUser.username) : 'ME').substring(0, 2).toUpperCase();
+            document.getElementById('local-avatar-initials').textContent = myInitials;
+            document.getElementById('local-avatar-name').textContent = currentUser ? currentUser.display_name || currentUser.username : 'You';
+            
+            const remoteInitials = (activeCallTarget || 'RP').substring(0, 2).toUpperCase();
+            document.getElementById('remote-avatar-initials').textContent = remoteInitials;
+            document.getElementById('remote-avatar-name').textContent = activeCallTarget || 'Remote Peer';
+        }
+
+        function updateCallTimer() {
+            if (!callStartTime) return;
+            const elapsedSeconds = Math.floor((Date.now() - callStartTime) / 1000);
+            const mins = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
+            const secs = String(elapsedSeconds % 60).padStart(2, '0');
+            document.getElementById('call-duration-timer').textContent = `${mins}:${secs}`;
+        }
+
+        // End / Leave Video Call
+        function endActiveVideoCall(notifyPeer = true) {
+            if (notifyPeer && activeCallTarget && !isLoopbackMode) {
+                sendSignal(activeCallTarget, { type: 'end-call' });
+            }
+
+            playChime('leave');
+
+            // Stop streams & tracks
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            if (displayStream) {
+                displayStream.getTracks().forEach(track => track.stop());
+                displayStream = null;
+            }
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+
+            if (callTimerInterval) clearInterval(callTimerInterval);
+            if (audioVUInterval) clearInterval(audioVUInterval);
+
+            localVideo.srcObject = null;
+            remoteVideo.srcObject = null;
+            remoteAudio.srcObject = null;
+
+            isCallActive = false;
+            isLoopbackMode = false;
+            isScreenSharing = false;
+            activeCallTarget = null;
+
+            videoCallStage.classList.add('hidden');
+            showToast("Video call ended", "info");
+        }
+
+
+        // =========================================================
+        // MIC, CAMERA MUTE & SCREEN SHARING CONTROLS
+        // =========================================================
+
+        function toggleMicMute() {
+            if (!localStream) return;
+            const audioTrack = localStream.getAudioTracks()[0];
+            if (audioTrack) {
+                isMicMuted = !isMicMuted;
+                audioTrack.enabled = !isMicMuted;
+                updateMicMuteUI();
+                playChime('toggle');
+            }
+        }
+
+        function updateMicMuteUI() {
+            const btnMic = document.getElementById('call-btn-mic');
+            const iconOn = document.getElementById('icon-mic-on');
+            const iconOff = document.getElementById('icon-mic-off');
+            const badge = document.getElementById('local-mic-badge');
+
+            if (isMicMuted) {
+                iconOn.classList.add('hidden');
+                iconOff.classList.remove('hidden');
+                btnMic.classList.add('bg-rose-600/80', 'hover:bg-rose-600');
+                badge.textContent = '🔇';
+                badge.className = 'glass-panel p-1.5 rounded-lg text-xs text-rose-400';
+                showToast("Microphone Muted", "info");
+            } else {
+                iconOn.classList.remove('hidden');
+                iconOff.classList.add('hidden');
+                btnMic.classList.remove('bg-rose-600/80', 'hover:bg-rose-600');
+                badge.textContent = '🎙️';
+                badge.className = 'glass-panel p-1.5 rounded-lg text-xs text-emerald-400';
+                showToast("Microphone Unmuted", "success");
+            }
+        }
+
+        function toggleCamMute() {
+            if (!localStream) return;
+            const videoTrack = localStream.getVideoTracks()[0];
+            if (videoTrack) {
+                isCamMuted = !isCamMuted;
+                videoTrack.enabled = !isCamMuted;
+                updateCamMuteUI();
+                playChime('toggle');
+            }
+        }
+
+        function updateCamMuteUI() {
+            const btnCam = document.getElementById('call-btn-cam');
+            const iconOn = document.getElementById('icon-cam-on');
+            const iconOff = document.getElementById('icon-cam-off');
+            const badge = document.getElementById('local-cam-badge');
+
+            if (isCamMuted) {
+                iconOn.classList.add('hidden');
+                iconOff.classList.remove('hidden');
+                btnCam.classList.add('bg-rose-600/80', 'hover:bg-rose-600');
+                localAvatarFallback.classList.remove('hidden');
+                badge.textContent = '🚫';
+                badge.className = 'glass-panel p-1.5 rounded-lg text-xs text-rose-400';
+                showToast("Camera Turned Off", "info");
+            } else {
+                iconOn.classList.remove('hidden');
+                iconOff.classList.add('hidden');
+                btnCam.classList.remove('bg-rose-600/80', 'hover:bg-rose-600');
+                localAvatarFallback.classList.add('hidden');
+                badge.textContent = '📹';
+                badge.className = 'glass-panel p-1.5 rounded-lg text-xs text-emerald-400';
+                showToast("Camera Turned On", "success");
+            }
+        }
+
+        // Screen Sharing (`getDisplayMedia`) Logic
+        async function toggleScreenShare() {
+            if (!isCallActive) return;
+
+            if (isScreenSharing) {
+                // Stop screen share & revert to camera
+                if (displayStream) {
+                    displayStream.getTracks().forEach(t => t.stop());
+                    displayStream = null;
+                }
+                const camTrack = localStream.getVideoTracks()[0];
+                if (camTrack && peerConnection) {
+                    const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+                    if (sender) sender.replaceTrack(camTrack);
+                }
+                localVideo.srcObject = localStream;
+                if (isLoopbackMode) remoteVideo.srcObject = localStream;
+                isScreenSharing = false;
+                document.getElementById('call-btn-screen').classList.remove('bg-indigo-600');
+                showToast("Screen sharing stopped", "info");
+            } else {
+                // Request Display Stream
+                try {
+                    displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                    const screenTrack = displayStream.getVideoTracks()[0];
+
+                    screenTrack.onended = () => {
+                        if (isScreenSharing) toggleScreenShare();
+                    };
+
+                    localVideo.srcObject = displayStream;
+                    if (isLoopbackMode) remoteVideo.srcObject = displayStream;
+
+                    if (peerConnection) {
+                        const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+                        if (sender) sender.replaceTrack(screenTrack);
+                    }
+
+                    isScreenSharing = true;
+                    document.getElementById('call-btn-screen').classList.add('bg-indigo-600');
+                    showToast("Screen sharing active", "success");
+                } catch (err) {
+                    showAlert("Screen Share Warning", "Could not start display capture.");
+                }
+            }
+        }
+
+        // Keyboard Shortucts for Mic & Camera
+        window.addEventListener('keydown', (e) => {
+            if (isCallActive && (e.ctrlKey || e.metaKey)) {
+                if (e.key.toLowerCase() === 'm') {
+                    e.preventDefault();
+                    toggleMicMute();
+                } else if (e.key.toLowerCase() === 'e') {
+                    e.preventDefault();
+                    toggleCamMute();
+                }
+            }
+        });
+
+        function toggleCallFullscreen() {
+            if (!document.fullscreenElement) {
+                videoCallStage.requestFullscreen().catch(err => console.warn(err));
+            } else {
+                document.exitFullscreen().catch(err => console.warn(err));
+            }
+        }
+
+        function toggleInCallChat() {
+            const drawer = document.getElementById('incall-side-drawer');
+            drawer.classList.toggle('hidden');
+            document.getElementById('incall-unread-dot').classList.add('hidden');
+        }
+
+        document.getElementById('incall-chat-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const input = document.getElementById('incall-msg-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const container = document.getElementById('incall-messages-container');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = "bg-slate-950 p-2 rounded-lg border border-slate-800";
+            msgDiv.innerHTML = `
+                <div class="font-bold text-indigo-400">${currentUser ? currentUser.display_name || currentUser.username : 'You'}</div>
+                <div class="text-slate-200 mt-0.5">${escapeHTML(text)}</div>
+            `;
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+            input.value = '';
+        });
+
+
+        // =========================================================
+        // SUPABASE AUTH, PROFILE & CHAT SYSTEM LOGIC
+        // =========================================================
 
         document.getElementById('signup-btn').addEventListener('click', async () => {
             authError.classList.add('hidden');
@@ -494,6 +1450,13 @@
         function showAuthError(msg) {
             authError.textContent = msg;
             authError.classList.remove('hidden');
+        }
+
+        async function hashPassword(password) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
         function initAuthenticatedSession(profile) {
@@ -553,14 +1516,14 @@
                 });
         }
 
-        async function updateStandingState(newStanding) {
-            if (presenceChannel) {
-                await presenceChannel.track({
-                    username: currentUser.username,
-                    standing: newStanding,
-                    custom_status: currentUser.custom_status || ''
-                });
-            }
+        function updatePresenceUI() {
+            let onlineCount = 0;
+            onlineUsersMap.forEach((standing) => {
+                if (standing && standing !== 'offline') onlineCount++;
+            });
+            document.getElementById('online-counter-text').textContent = `${onlineCount} Online`;
+            document.getElementById('self-standing-dot').className = `w-2.5 h-2.5 rounded-full inline-block ${getStandingColorClass(manualStanding)}`;
+            loadFriends();
         }
 
         function getStandingColorClass(standing) {
@@ -574,16 +1537,6 @@
 
         function renderStandingBadgeDot(standing) {
             return `<span class="inline-block w-2.5 h-2.5 rounded-full ${getStandingColorClass(standing)} shrink-0"></span>`;
-        }
-
-        function updatePresenceUI() {
-            let onlineCount = 0;
-            onlineUsersMap.forEach((standing) => {
-                if (standing && standing !== 'offline') onlineCount++;
-            });
-            document.getElementById('online-counter-text').textContent = `${onlineCount} Online`;
-            document.getElementById('self-standing-dot').className = `w-2.5 h-2.5 rounded-full inline-block ${getStandingColorClass(manualStanding)}`;
-            loadFriends();
         }
 
         function openPresenceModal() {
@@ -614,99 +1567,6 @@
             document.getElementById('presence-modal').classList.remove('hidden');
         }
 
-        async function refreshAdminStats() {
-            const { count: uCount } = await supabaseClient.from('profiles').select('*', { count: 'exact', head: true });
-            const { count: mCount } = await supabaseClient.from('chat_messages').select('*', { count: 'exact', head: true });
-            const { count: rCount } = await supabaseClient.from('reports').select('*', { count: 'exact', head: true });
-
-            document.getElementById('admin-stat-users').textContent = uCount || 0;
-            document.getElementById('admin-stat-messages').textContent = mCount || 0;
-            document.getElementById('admin-stat-reports').textContent = rCount || 0;
-            document.getElementById('admin-stat-active').textContent = onlineUsersMap.size;
-        }
-
-        async function toggleAdminRole(grant) {
-            const targetUsername = document.getElementById('admin-target-username').value.trim().toLowerCase();
-            if (!targetUsername) return alert("Enter target username.");
-
-            const { error } = await supabaseClient.from('profiles').update({ is_admin: grant ? 1 : 0 }).eq('username', targetUsername);
-            if (error) alert("Failed: " + error.message);
-            else alert(`Successfully ${grant ? 'granted admin to' : 'revoked admin from'} @${targetUsername}`);
-        }
-
-        async function purgeUserMessages() {
-            const targetUsername = document.getElementById('admin-target-username').value.trim().toLowerCase();
-            if (!targetUsername) return alert("Enter target username.");
-            if (!confirm(`Purge ALL messages sent by @${targetUsername}?`)) return;
-
-            const { error } = await supabaseClient.from('chat_messages').delete().eq('username', targetUsername);
-            if (error) alert(error.message);
-            else { alert(`Messages purged.`); loadChannelMessages(); }
-        }
-
-        async function deleteTargetAccount() {
-            const targetUsername = document.getElementById('admin-target-username').value.trim().toLowerCase();
-            if (!targetUsername) return alert("Enter target username.");
-            if (!confirm(`Permanently delete @${targetUsername} and all their data?`)) return;
-
-            await supabaseClient.from('chat_messages').delete().eq('username', targetUsername);
-            const { error } = await supabaseClient.from('profiles').delete().eq('username', targetUsername);
-            if (error) alert(error.message);
-            else alert(`User deleted.`);
-        }
-
-        async function sendGlobalAnnouncement() {
-            const text = document.getElementById('admin-announcement-text').value.trim();
-            if (!text) return alert("Enter announcement text.");
-
-            const { error } = await supabaseClient.from('chat_messages').insert([{
-                user_id: currentUser.id,
-                username: currentUser.username,
-                channel_id: 'announcements',
-                message: `📢 GLOBAL ANNOUNCEMENT:\n${text}`
-            }]);
-
-            if (error) alert(error.message);
-            else {
-                alert("Announcement posted!");
-                document.getElementById('admin-announcement-text').value = '';
-                if (activeChannel === 'announcements') loadChannelMessages();
-            }
-        }
-
-        async function purgeActiveChannelMessages() {
-            if (!confirm(`Clear ALL messages in channel #${activeChannel}?`)) return;
-            const { error } = await supabaseClient.from('chat_messages').delete().eq('channel_id', activeChannel);
-            if (error) alert(error.message);
-            else loadChannelMessages();
-        }
-
-        document.getElementById('open-admin-panel-btn').addEventListener('click', async () => {
-            document.getElementById('admin-panel-modal').classList.remove('hidden');
-            refreshAdminStats();
-            refreshAdminReports();
-        });
-
-        async function refreshAdminReports() {
-            const { data } = await supabaseClient.from('reports').select('*').order('created_at', { ascending: false });
-            const list = document.getElementById('admin-reports-list');
-            list.innerHTML = '';
-            if (data && data.length > 0) {
-                data.forEach(r => {
-                    const div = document.createElement('div');
-                    div.className = "bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-xs space-y-1";
-                    div.innerHTML = `
-                        <div class="font-bold text-slate-300">Report by @${escapeHTML(r.reporter_username)}</div>
-                        <p class="text-slate-400">Target (${escapeHTML(r.target_type)}): <b>${escapeHTML(r.target_id)}</b></p>
-                        <p class="text-slate-300 italic">"${escapeHTML(r.reason)}"</p>
-                    `;
-                    list.appendChild(div);
-                });
-            } else {
-                list.innerHTML = '<p class="text-xs text-slate-500 italic">No reports logged.</p>';
-            }
-        }
-
         document.getElementById('open-profile-btn').addEventListener('click', () => {
             document.getElementById('edit-display-name').value = currentUser.display_name || currentUser.username;
             document.getElementById('edit-bio').value = currentUser.bio || '';
@@ -729,19 +1589,10 @@
                 currentUser.custom_status = custom_status;
                 manualStanding = standing;
                 updateUserDisplayUI();
-                updateStandingState(standing);
                 profileModal.classList.add('hidden');
+                showToast("Profile changes saved", "success");
             }
         });
-
-        async function fileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-            });
-        }
 
         pfpUploadInput.addEventListener('change', async (e) => {
             if (!e.target.files || !e.target.files[0] || !currentUser) return;
@@ -791,7 +1642,7 @@
 
         async function showUserProfile(username) {
             const profile = await fetchProfile(username);
-            if (!profile) return alert("Profile not found.");
+            if (!profile) return showAlert("Error", "Profile not found.");
 
             const avatarEl = document.getElementById('view-profile-avatar');
             if (profile.avatar_url) {
@@ -812,47 +1663,12 @@
             document.getElementById('view-profile-modal').classList.remove('hidden');
         }
 
-        msgInput.addEventListener('input', () => {
-            const val = msgInput.value;
-            const cursorPosition = msgInput.selectionStart;
-            const textBeforeCursor = val.substring(0, cursorPosition);
-            const mentionMatch = textBeforeCursor.match(/@([a-z0-9_.]*)$/);
-
-            if (presenceChannel) {
-                presenceChannel.send({ type: 'broadcast', event: 'typing', payload: { channel_id: activeChannel, username: currentUser.username } });
-            }
-
-            if (mentionMatch) {
-                const query = mentionMatch[1];
-                const matches = Array.from(allKnownUsers).filter(u => u.startsWith(query));
-                if (matches.length > 0) {
-                    mentionAutocomplete.innerHTML = '';
-                    matches.forEach(uname => {
-                        const item = document.createElement('div');
-                        item.className = "px-3 py-1.5 hover:bg-indigo-600 hover:text-white rounded-lg cursor-pointer text-xs font-semibold text-slate-200 flex items-center justify-between";
-                        item.innerHTML = `<span>@${uname}</span>`;
-                        item.onclick = () => {
-                            const newText = textBeforeCursor.replace(/@[a-z0-9_.]*$/, `@${uname} `) + val.substring(cursorPosition);
-                            msgInput.value = newText;
-                            mentionAutocomplete.classList.add('hidden');
-                            msgInput.focus();
-                        };
-                        mentionAutocomplete.appendChild(item);
-                    });
-                    mentionAutocomplete.classList.remove('hidden');
-                    return;
-                }
-            }
-            mentionAutocomplete.classList.add('hidden');
-        });
-
         async function loadChannels() {
             const { data: channels } = await supabaseClient.from('channels').select('*');
             const channelList = document.getElementById('channel-list');
             
-            const generalMuted = isChannelMuted('general');
             channelList.innerHTML = `
-                <button data-channel="general" data-name="# general" class="channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${activeChannel === 'general' ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'} transition-colors flex items-center justify-between cursor-pointer"><span># general</span> ${generalMuted ? '<span class="text-[10px] opacity-60">🔕</span>' : ''}</button>
+                <button data-channel="general" data-name="# general" class="channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${activeChannel === 'general' ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'} transition-colors flex items-center justify-between cursor-pointer"><span># general</span></button>
                 <button data-channel="announcements" data-name="📢 announcements" class="channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${activeChannel === 'announcements' ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'} transition-colors flex items-center justify-between cursor-pointer"><span>📢 announcements</span></button>
             `;
 
@@ -863,32 +1679,12 @@
                         btn.dataset.channel = chan.id;
                         btn.dataset.name = chan.name;
                         const isActive = activeChannel === chan.id;
-                        const muted = isChannelMuted(chan.id);
                         btn.className = `channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${isActive ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'} transition-colors flex items-center justify-between cursor-pointer`;
-                        btn.innerHTML = `<span>${chan.name}</span> ${muted ? '<span class="text-[10px] opacity-60">🔕</span>' : ''}`;
+                        btn.innerHTML = `<span>${chan.name}</span>`;
                         channelList.appendChild(btn);
                     }
                 });
             }
-
-            document.querySelectorAll('.channel-btn').forEach(btn => {
-                btn.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    contextChannelId = btn.dataset.channel;
-                    contextChannelName = btn.dataset.name;
-                    contextMenu.style.top = `${e.clientY}px`;
-                    contextMenu.style.left = `${e.clientX}px`;
-                    const muteBtn = document.getElementById('context-mute-btn');
-                    if (contextChannelId === 'announcements') muteBtn.style.display = 'none';
-                    else {
-                        muteBtn.style.display = 'block';
-                        muteBtn.textContent = isChannelMuted(contextChannelId) ? '🔔 Unmute Channel' : '🔕 Mute Channel';
-                    }
-                    contextMenu.classList.remove('hidden');
-                });
-            });
-
-            updateMuteUI();
         }
 
         async function createNewChannel() {
@@ -908,24 +1704,10 @@
             const btn = e.target.closest('.channel-btn');
             if (!btn) return;
             activeChannel = btn.dataset.channel;
-            updateMuteUI();
             document.getElementById('active-channel-title').textContent = btn.dataset.name || btn.textContent.trim();
-            checkAnnouncementsPermissions();
             loadChannelMessages();
             loadChannels();
         });
-
-        function checkAnnouncementsPermissions() {
-            const isAnnouncements = activeChannel === 'announcements';
-            const isAdmin = currentUser && (currentUser.is_admin === 1 || currentUser.username.toLowerCase() === 'sillygoobah33');
-            if (isAnnouncements && !isAdmin) {
-                msgInput.disabled = true;
-                msgInput.placeholder = "Only admins can post in announcements";
-            } else {
-                msgInput.disabled = false;
-                msgInput.placeholder = "Broadcast message...";
-            }
-        }
 
         function getDMChannelID(u1, u2) {
             const sorted = [u1, u2].sort();
@@ -938,7 +1720,7 @@
             if (!targetUsername || targetUsername === currentUser.username) return;
 
             const { data: targetUser } = await supabaseClient.from('profiles').select('*').eq('username', targetUsername).maybeSingle();
-            if (!targetUser) return alert("User not found.");
+            if (!targetUser) return showAlert("User Search", "User not found.");
 
             const { error } = await supabaseClient.from('friends').insert([{
                 user_id: currentUser.id,
@@ -948,7 +1730,8 @@
             if (!error) {
                 input.value = '';
                 loadFriends();
-            } else alert(error.message);
+                showToast("Friend request sent!", "success");
+            } else showToast(error.message, "error");
         });
 
         async function loadFriends() {
@@ -1039,31 +1822,16 @@
             loadFriends();
         }
         function openDM(targetUsername) {
-            if (!userFriends.has(targetUsername)) return alert("Must be friends to DM.");
+            if (!userFriends.has(targetUsername)) return showAlert("Friend Required", "Must be friends to send DMs.");
             const cid = getDMChannelID(currentUser.username, targetUsername);
             activeChannel = cid;
-            updateMuteUI();
             document.getElementById('active-channel-title').textContent = `@ ${targetUsername}`;
-            checkAnnouncementsPermissions();
             loadChannelMessages();
         }
 
         function listenToFriendsRealtime() {
             supabaseClient.channel('public:friends').on('postgres_changes', { event: '*', schema: 'public', table: 'friends' }, () => loadFriends()).subscribe();
         }
-
-        mediaFileInput.addEventListener('change', (e) => {
-            if (e.target.files && e.target.files[0]) {
-                selectedFile = e.target.files[0];
-                filePreviewName.textContent = `Attached: ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)`;
-                filePreview.classList.remove('hidden');
-            }
-        });
-        document.getElementById('cancel-file-btn').addEventListener('click', () => {
-            selectedFile = null;
-            mediaFileInput.value = '';
-            filePreview.classList.add('hidden');
-        });
 
         async function loadChannelMessages() {
             knownMessageIds.clear();
@@ -1141,7 +1909,7 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        chatForm.addEventListener('submit', async (e) => {
+        document.getElementById('chat-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const text = msgInput.value.trim();
             if ((!text && !selectedFile) || !currentUser) return;
@@ -1187,137 +1955,27 @@
         }
 
         function triggerReport(targetType, targetId) {
-            activeReportTarget = { targetType, targetId };
             document.getElementById('report-reason-input').value = '';
             document.getElementById('report-modal').classList.remove('hidden');
         }
 
-        document.getElementById('submit-report-btn').addEventListener('click', async () => {
-            const reason = document.getElementById('report-reason-input').value.trim();
-            if (!reason) return;
-            await supabaseClient.from('reports').insert([{
-                reporter_username: currentUser.username,
-                target_type: activeReportTarget.targetType,
-                target_id: String(activeReportTarget.targetId),
-                reason
-            }]);
-            alert("Report submitted.");
-            document.getElementById('report-modal').classList.add('hidden');
-        });
-
-        function listenToPersonalSignaling() {
-            personalSignalingChannel = supabaseClient.channel(`user-signal:${currentUser.username}`);
-            personalSignalingChannel.on('broadcast', { event: 'signal' }, async ({ payload }) => {
-                if (payload.type === 'offer') {
-                    pendingOfferPayload = payload;
-                    document.getElementById('incoming-caller-text').textContent = `@${payload.callerUsername} is calling...`;
-                    document.getElementById('incoming-call-modal').classList.remove('hidden');
-                } else if (payload.type === 'answer' && peerConnection) {
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.answer));
-                } else if (payload.type === 'ice-candidate' && peerConnection) {
-                    await peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate));
-                } else if (payload.type === 'end-call') {
-                    cleanUpCallState();
-                }
-            }).subscribe();
-        }
-
-        async function startCall() {
-            let targetFriend = null;
-            if (activeChannel.startsWith('dm_')) {
-                const parts = activeChannel.replace('dm_', '').split('||');
-                targetFriend = parts.find(u => u !== currentUser.username);
-            }
-            if (!targetFriend) return alert("You can only start calls inside direct message chats with friends.");
-
-            activeCallTarget = targetFriend;
-            document.getElementById('call-bar').classList.remove('hidden');
-            document.getElementById('call-status').textContent = `Calling ${targetFriend}...`;
-
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                setupPeerConnection(targetFriend);
-                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
-                sendSignal(targetFriend, { type: 'offer', offer, callerUsername: currentUser.username });
-            } catch (err) {
-                alert("Microphone permission denied.");
-                cleanUpCallState();
-            }
-        }
-
-        document.getElementById('accept-call-btn').addEventListener('click', async () => {
-            document.getElementById('incoming-call-modal').classList.add('hidden');
-            if (!pendingOfferPayload) return;
-            const payload = pendingOfferPayload;
-            activeCallTarget = payload.callerUsername;
-
-            document.getElementById('call-bar').classList.remove('hidden');
-            document.getElementById('call-status').textContent = `In Call with ${payload.callerUsername}`;
-
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                setupPeerConnection(payload.callerUsername);
-                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.offer));
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-                sendSignal(payload.callerUsername, { type: 'answer', answer });
-            } catch (err) {
-                cleanUpCallState();
-            }
-        });
-
-        document.getElementById('reject-call-btn').addEventListener('click', () => {
-            document.getElementById('incoming-call-modal').classList.add('hidden');
-            if (pendingOfferPayload) sendSignal(pendingOfferPayload.callerUsername, { type: 'end-call' });
-            pendingOfferPayload = null;
-        });
-
-        document.getElementById('end-call-btn').addEventListener('click', () => {
-            if (activeCallTarget) sendSignal(activeCallTarget, { type: 'end-call' });
-            cleanUpCallState();
-        });
-
-        function setupPeerConnection(targetUsername) {
-            peerConnection = new RTCPeerConnection(rtcConfig);
-            peerConnection.onicecandidate = (e) => {
-                if (e.candidate) sendSignal(targetUsername, { type: 'ice-candidate', candidate: e.candidate });
-            };
-            peerConnection.ontrack = (e) => {
-                const remoteAudio = document.getElementById('remote-audio');
-                if (remoteAudio.srcObject !== e.streams[0]) {
-                    remoteAudio.srcObject = e.streams[0];
-                    remoteAudio.play().catch(err => console.warn(err));
-                }
-            };
-        }
-
-        function sendSignal(targetUsername, payload) {
-            supabaseClient.channel(`user-signal:${targetUsername}`).send({ type: 'broadcast', event: 'signal', payload });
-        }
-
-        function cleanUpCallState() {
-            document.getElementById('incoming-call-modal').classList.add('hidden');
-            document.getElementById('call-bar').classList.add('hidden');
-            if (localStream) {
-                localStream.getTracks().forEach(t => t.stop());
-                localStream = null;
-            }
-            if (peerConnection) {
-                peerConnection.close();
-                peerConnection = null;
-            }
-            activeCallTarget = null;
-            pendingOfferPayload = null;
+        async function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
         }
 
         function escapeHTML(str) {
             return (str || '').replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
         }
+
+        // Initialize App on DOM Ready
+        window.addEventListener('DOMContentLoaded', () => {
+            enumerateDevices();
+        });
     </script>
 </body>
 </html>
