@@ -854,27 +854,31 @@
             }
 
             if (rawInvite) {
-                try {
-                    let cid = rawInvite;
-                    let cname = `# ${rawInvite}`;
-                    if (rawInvite.includes('|') || rawInvite.length > 15) {
-                        try {
-                            const decoded = atob(rawInvite);
-                            const parts = decoded.split('|');
-                            if (parts.length >= 2) {
-                                cid = parts[0];
-                                cname = parts[1];
-                            }
-                        } catch (e) {}
-                    }
-                    customChannelsSet.add(cid);
-                    channelNamesMap.set(cid, cname);
-                    saveUserJoinedChannels();
-                    activeChannel = cid;
-                } catch(e) {}
-
+                sessionStorage.setItem('pending_mesh_invite', rawInvite);
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
+        }
+
+        function processPendingInviteIfAny() {
+            const rawInvite = sessionStorage.getItem('pending_mesh_invite');
+            if (!rawInvite) return;
+
+            try {
+                let cid = rawInvite;
+                let cname = `# ${rawInvite}`;
+                if (rawInvite.includes('|') || rawInvite.length > 15) {
+                    try {
+                        const decoded = atob(rawInvite);
+                        const parts = decoded.split('|');
+                        if (parts.length >= 2) {
+                            cid = parts[0];
+                            cname = parts[1];
+                        }
+                    } catch (e) {}
+                }
+                joinChannelById(cid, cname);
+                sessionStorage.removeItem('pending_mesh_invite');
+            } catch(e) {}
         }
 
         window.addEventListener('click', (e) => {
@@ -2182,6 +2186,7 @@
             authModal.classList.add('hidden');
 
             loadUserJoinedChannels();
+            processPendingInviteIfAny();
             setupPresenceRealtime();
             listenToPersonalSignaling();
             loadFriends();
