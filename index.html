@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mesh Chat - Video Edition</title>
-    <link rel="icon" type="image/png" href="icon.png">
+    <link id="favicon" rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'><path d='M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z'/></svg>">
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -39,7 +40,7 @@
         }
     </script>
     <style>
-        /* Custom Scrollbar Styling */
+        /* Custom Scrollbars */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
         ::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.4); border-radius: 9999px; }
@@ -66,7 +67,7 @@
 </head>
 <body class="bg-slate-950 text-slate-100 h-screen w-screen flex flex-col md:flex-row font-sans overflow-hidden antialiased select-none">
 
-    <!-- Toast Notification Container -->
+    <!-- Toast Container -->
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
     <!-- Universal Custom Dialog Modal (Replaces Native alert / confirm) -->
@@ -83,32 +84,55 @@
 
     <input type="file" id="pfp-upload-input" class="hidden" accept="image/*">
 
-    <!-- Context Menu for Channels -->
-    <div id="channel-context-menu" class="hidden fixed z-50 bg-slate-900 border border-slate-800 rounded-lg shadow-xl p-1 text-xs w-40">
-        <button id="context-invite-btn" class="w-full text-left px-3 py-1.5 hover:bg-indigo-600 hover:text-white rounded transition-colors cursor-pointer font-medium">📨 Invite User</button>
-        <button id="context-mute-btn" class="w-full text-left px-3 py-1.5 hover:bg-indigo-600 hover:text-white rounded transition-colors cursor-pointer font-medium">🔕 Mute Channel</button>
+    <!-- Right-Click Context Menu for Channels -->
+    <div id="channel-context-menu" class="hidden fixed z-50 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-1.5 text-xs w-48">
+        <button id="context-invite-btn" onclick="openChannelInviteModalFromContext()" class="w-full text-left px-3 py-2 hover:bg-indigo-600 hover:text-white rounded-lg transition-colors cursor-pointer font-medium flex items-center gap-2">
+            <span>📨</span> Invite Users to Channel
+        </button>
+        <button id="context-copy-link-btn" onclick="copyContextChannelLink()" class="w-full text-left px-3 py-2 hover:bg-indigo-600 hover:text-white rounded-lg transition-colors cursor-pointer font-medium flex items-center gap-2">
+            <span>🔗</span> Copy Invite Link
+        </button>
     </div>
 
-    <!-- Server Invite Modal -->
+    <!-- Server / Channel Invite Modal -->
     <div id="invite-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-4">
-            <h3 class="text-sm font-bold text-slate-100">Send Server Invite (to DMs)</h3>
-            <div>
-                <label class="text-[10px] font-bold text-slate-400 uppercase">Search or Enter Target Username</label>
-                <input type="text" id="invite-target-input" placeholder="Type username..." class="w-full mt-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <h3 class="text-sm font-bold text-slate-100 flex items-center gap-2">
+                    <span>📨</span> Invite User to Channel
+                </h3>
+                <button onclick="document.getElementById('invite-modal').classList.add('hidden')" class="text-slate-500 hover:text-slate-300 font-bold">&times;</button>
             </div>
+            
             <div>
-                <label class="text-[10px] font-bold text-slate-400 uppercase">Quick Pick Friend</label>
-                <div id="invite-friends-list" class="mt-1 space-y-1 max-h-32 overflow-y-auto"></div>
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Target Channel</label>
+                <div id="invite-modal-channel-name" class="text-xs font-bold text-indigo-400 bg-slate-950 px-3 py-2 rounded-lg border border-slate-800">
+                    # general
+                </div>
             </div>
-            <div class="flex gap-2">
-                <button id="send-invite-btn" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2 rounded-lg cursor-pointer">Send Invite</button>
-                <button onclick="document.getElementById('invite-modal').classList.add('hidden')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-xs font-bold py-2 rounded-lg cursor-pointer">Cancel</button>
+
+            <div>
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Enter Target Username</label>
+                <input type="text" id="invite-target-input" placeholder="Type username..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
+            </div>
+            
+            <div>
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Quick Pick Friend</label>
+                <div id="invite-friends-list" class="space-y-1.5 max-h-36 overflow-y-auto pr-1"></div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-800 flex flex-col gap-2">
+                <button id="send-invite-btn" onclick="executeSendChannelInvite()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-xl cursor-pointer transition-colors shadow-lg shadow-indigo-600/20">
+                    Send Invite Card to DM
+                </button>
+                <button onclick="copyCurrentInviteLink()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold py-2.5 rounded-xl cursor-pointer transition-colors border border-slate-700">
+                    📋 Copy Direct Invite Link
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Admin Panel Modal -->
+    <!-- Admin Command Panel Modal -->
     <div id="admin-panel-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-indigo-500/50 p-6 rounded-2xl max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b border-slate-800 pb-2">
@@ -182,7 +206,7 @@
         </div>
     </div>
 
-    <!-- Report User Modal -->
+    <!-- Report Modal -->
     <div id="report-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-4">
             <h3 class="text-sm font-bold text-slate-100">Report Content or User</h3>
@@ -221,17 +245,17 @@
                 📹
             </div>
             <div>
-                <h3 class="text-base font-bold text-slate-100">Incoming Video Call</h3>
+                <h3 class="text-base font-bold text-slate-100">Incoming Call</h3>
                 <p id="incoming-caller-text" class="text-xs text-indigo-400 mt-1 font-medium"></p>
             </div>
             <div class="flex gap-2">
-                <button id="accept-call-btn" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-xs font-bold py-2.5 rounded-lg cursor-pointer transition-colors">Accept Call</button>
+                <button id="accept-call-btn" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-xs font-bold py-2.5 rounded-lg cursor-pointer transition-colors">Accept</button>
                 <button id="reject-call-btn" class="flex-1 bg-rose-600 hover:bg-rose-500 text-xs font-bold py-2.5 rounded-lg cursor-pointer transition-colors">Decline</button>
             </div>
         </div>
     </div>
 
-    <!-- User Profile View Modal -->
+    <!-- Profile View Modal -->
     <div id="view-profile-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-2xl max-w-sm w-full shadow-2xl space-y-4 text-center">
             <div id="view-profile-avatar" class="w-20 h-20 rounded-full bg-indigo-600 mx-auto flex items-center justify-center text-xl font-bold overflow-hidden border border-slate-700">?</div>
@@ -246,7 +270,7 @@
         </div>
     </div>
 
-    <!-- Edit Profile Modal -->
+    <!-- Profile Edit Modal -->
     <div id="profile-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 p-6 sm:p-8 rounded-2xl max-w-md w-full shadow-2xl space-y-4">
             <h2 class="text-xl font-bold text-slate-100">Edit Profile & Status</h2>
@@ -299,7 +323,6 @@
                 <select id="mic-device-select" class="w-full bg-slate-950 border border-slate-800 text-xs rounded-xl p-2.5 text-slate-200 focus:outline-none focus:border-indigo-500">
                     <option value="">Default Microphone</option>
                 </select>
-                <!-- Mic Live VU Meter -->
                 <div class="mt-2 flex items-center gap-2">
                     <span class="text-[10px] text-slate-400">Mic Test:</span>
                     <div class="flex-1 bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800">
@@ -325,7 +348,7 @@
                 <p id="speaker-support-notice" class="text-[10px] text-slate-500 mt-1 italic">Audio output selection supported on Chrome/Edge browsers.</p>
             </div>
 
-            <!-- Local Mirror Switch -->
+            <!-- Mirror Switch -->
             <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950 border border-slate-800">
                 <span class="text-xs font-medium text-slate-300">Mirror My Video Preview</span>
                 <label class="relative inline-flex items-center cursor-pointer">
@@ -338,6 +361,42 @@
                 <button onclick="document.getElementById('device-settings-modal').classList.add('hidden')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-xs font-bold py-2.5 rounded-xl transition-colors cursor-pointer">
                     Apply & Close
                 </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ========================================================= -->
+    <!-- ASPECT RATIO PRESERVING SCREEN SHARE POPUP OVERLAY        -->
+    <!-- ========================================================= -->
+    <div id="screenshare-popup-modal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div id="screenshare-popup-container" class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden max-w-[92vw] max-h-[85vh] transition-all duration-200">
+            
+            <!-- Popup Header Bar -->
+            <div class="px-4 py-3 glass-panel border-b border-slate-800 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-base">🖥️</span>
+                    <h3 id="screenshare-popup-title" class="text-xs sm:text-sm font-bold text-slate-100 truncate">Screen Share Stream</h3>
+                    <span id="screenshare-aspect-badge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">16:9</span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleScreenSharePiP()" class="px-2.5 py-1 glass-control rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white text-xs transition-colors flex items-center gap-1" title="Picture in Picture">
+                        <span>📺</span> <span class="hidden sm:inline">PiP</span>
+                    </button>
+                    <button onclick="toggleScreenShareFullscreen()" class="px-2.5 py-1 glass-control rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white text-xs transition-colors flex items-center gap-1" title="Fullscreen">
+                        <span>⛶</span> <span class="hidden sm:inline">Full</span>
+                    </button>
+                    <button id="screenshare-stop-btn" onclick="toggleScreenShare()" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-lg transition-colors shadow">
+                        Stop Sharing
+                    </button>
+                    <button onclick="closeScreenSharePopup()" class="text-slate-500 hover:text-slate-300 font-bold text-lg px-1.5">&times;</button>
+                </div>
+            </div>
+
+            <!-- Native Aspect Ratio Video Stage Box -->
+            <div id="screenshare-video-wrapper" class="flex-1 bg-black flex items-center justify-center relative min-h-0 overflow-hidden">
+                <video id="screenshare-popup-video" autoplay playsinline class="w-full h-full object-contain max-h-[75vh]"></video>
             </div>
         </div>
     </div>
@@ -357,7 +416,7 @@
                 <div>
                     <div class="flex items-center gap-2">
                         <span id="call-room-title" class="text-sm font-bold text-slate-100">Live Video Session</span>
-                        <span id="call-type-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Loopback Mode</span>
+                        <span id="call-type-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Group Call</span>
                     </div>
                     <div class="flex items-center gap-2 text-[11px] text-slate-400">
                         <span id="call-duration-timer" class="font-mono text-emerald-400">00:00</span>
@@ -374,17 +433,15 @@
                 <button onclick="toggleDeviceSettingsModal()" class="p-2.5 glass-control rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors" title="Device Settings">
                     ⚙️
                 </button>
-                <button id="toggle-incall-chat-btn" class="p-2.5 glass-control rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors relative" title="In-Call Chat">
+                <button id="toggle-incall-chat-btn" onclick="toggleInCallChat()" class="p-2.5 glass-control rounded-xl hover:bg-slate-800 text-slate-300 hover:text-white transition-colors relative" title="In-Call Chat">
                     💬 <span id="incall-unread-dot" class="hidden absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500"></span>
                 </button>
             </div>
         </header>
 
-        <!-- Main Video Area & Side Panel Container -->
+        <!-- Main Video Grid Container -->
         <div class="flex-1 flex min-h-0 relative overflow-hidden">
-            
-            <!-- Video Grid Grid Stage -->
-            <div class="flex-1 p-4 flex items-center justify-center min-h-0 relative">
+            <div class="flex-1 p-4 flex items-center justify-center min-h-0 relative overflow-y-auto">
                 <div id="video-grid" class="w-full h-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-4 items-center justify-center">
                     
                     <!-- Remote Peer Participant Tile -->
@@ -462,40 +519,40 @@
             </div>
         </div>
 
-        <!-- Floating Glassmorphic Call Action Control Bar -->
+        <!-- Floating Glassmorphic Call Control Bar -->
         <div class="h-20 flex items-center justify-center p-4 z-30 shrink-0 pointer-events-none">
             <div class="glass-panel px-6 py-3 rounded-2xl flex items-center gap-3 md:gap-4 shadow-2xl pointer-events-auto">
                 
-                <!-- Toggle Mic Button -->
+                <!-- Mic Button -->
                 <button id="call-btn-mic" onclick="toggleMicMute()" class="p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white shadow-lg transition-all transform active:scale-95" title="Toggle Mic (Ctrl+M)">
                     <span id="icon-mic-on" class="text-lg">🎙️</span>
                     <span id="icon-mic-off" class="text-lg hidden text-rose-400">🔇</span>
                 </button>
 
-                <!-- Toggle Camera Button -->
+                <!-- Cam Button -->
                 <button id="call-btn-cam" onclick="toggleCamMute()" class="p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white shadow-lg transition-all transform active:scale-95" title="Toggle Camera (Ctrl+E)">
                     <span id="icon-cam-on" class="text-lg">📹</span>
                     <span id="icon-cam-off" class="text-lg hidden text-rose-400">🚫</span>
                 </button>
 
-                <!-- Toggle Screen Share Button -->
+                <!-- Screen Share Button -->
                 <button id="call-btn-screen" onclick="toggleScreenShare()" class="p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white shadow-lg transition-all transform active:scale-95" title="Share Screen">
                     <span class="text-lg">🖥️</span>
                 </button>
 
-                <!-- Device Selector Quick Gear -->
+                <!-- Settings Button -->
                 <button onclick="toggleDeviceSettingsModal()" class="p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white shadow-lg transition-all transform active:scale-95" title="Audio / Video Settings">
                     <span class="text-lg">⚙️</span>
                 </button>
 
-                <!-- Fullscreen Toggle Button -->
+                <!-- Fullscreen Button -->
                 <button onclick="toggleCallFullscreen()" class="p-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white shadow-lg transition-all transform active:scale-95" title="Toggle Fullscreen">
                     <span class="text-lg">⛶</span>
                 </button>
 
                 <div class="h-8 w-px bg-slate-800 mx-1"></div>
 
-                <!-- Leave / End Call Button -->
+                <!-- End Call Button -->
                 <button onclick="endActiveVideoCall()" class="px-5 py-3.5 rounded-xl bg-rose-600 hover:bg-rose-500 font-bold text-white shadow-lg shadow-rose-600/30 transition-all transform active:scale-95 flex items-center gap-2 text-xs">
                     <span>📞</span> End Call
                 </button>
@@ -541,7 +598,7 @@
             <div class="flex items-center justify-between">
                 <span class="font-bold text-sm text-slate-200 flex items-center gap-2">
                     <span id="self-standing-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
-                    Mesh Chat <span class="text-[10px] text-indigo-400 font-mono">v2.0</span>
+                    Mesh Chat <span class="text-[10px] text-indigo-400 font-mono">v2.5</span>
                 </span>
                 <div class="flex gap-1">
                     <button id="open-admin-panel-btn" class="hidden text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded transition-colors cursor-pointer">⚡ Panel</button>
@@ -549,7 +606,7 @@
                 </div>
             </div>
 
-            <!-- Instant Loopback Test Call Launcher Button -->
+            <!-- Instant Loopback Test Button -->
             <button onclick="startLoopbackVideoTest()" class="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition-all cursor-pointer">
                 <span>📹</span> Test Cam & Mic (Loopback)
             </button>
@@ -607,29 +664,50 @@
 
     <!-- Main Workspace Panel -->
     <main class="flex-1 flex flex-col bg-slate-950 min-w-0 overflow-hidden h-full">
+        
+        <!-- Header Bar -->
         <header class="p-3 sm:p-4 border-b border-slate-800 bg-slate-900/40 flex items-center justify-between shrink-0">
             <div class="flex items-center gap-2">
                 <h1 id="active-channel-title" class="text-sm font-bold text-slate-200 truncate"># general</h1>
-                <button id="header-mute-btn" onclick="toggleMuteCurrentChannel()" class="text-xs text-slate-400 hover:text-slate-200 px-2 py-0.5 rounded bg-slate-800 border border-slate-700 transition-colors">🔕 Mute</button>
+                <button id="header-invite-btn" onclick="openChannelInviteModalCurrent()" class="text-xs text-indigo-300 hover:text-white px-2 py-1 rounded bg-indigo-600/30 border border-indigo-500/40 transition-colors flex items-center gap-1 cursor-pointer">
+                    <span>📨</span> Invite
+                </button>
             </div>
 
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 sm:gap-3">
                 <button id="online-users-count-btn" onclick="openPresenceModal()" class="flex items-center gap-1.5 text-xs bg-slate-900 hover:bg-slate-800 text-indigo-300 px-2.5 py-1 rounded-lg border border-slate-800 transition-colors cursor-pointer" title="View Users Online">
                     <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                     <span id="online-counter-text" class="font-bold">0 Online</span>
                 </button>
 
-                <button onclick="toggleDeviceSettingsModal()" class="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-800 transition-colors cursor-pointer" title="Input/Output Settings">
+                <button onclick="toggleDeviceSettingsModal()" class="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-800 transition-colors cursor-pointer" title="Input/Output Devices">
                     ⚙️ Devices
                 </button>
 
+                <!-- Dynamic Channel Video Call Launch Control -->
                 <div id="call-controls" class="flex gap-2">
-                    <button id="call-btn" onclick="startCall()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
-                        <span>📹</span> Video Call
+                    <button id="call-btn" onclick="handleCallButtonClick()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
+                        <span id="call-btn-icon">📹</span> <span id="call-btn-label">Start Call</span>
                     </button>
                 </div>
             </div>
         </header>
+
+        <!-- Active Channel Group Call Live Banner -->
+        <div id="group-call-banner" class="hidden bg-emerald-950/80 border-b border-emerald-500/40 px-4 py-2.5 flex items-center justify-between shrink-0 z-20">
+            <div class="flex items-center gap-3">
+                <span class="relative flex h-3 w-3">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </span>
+                <span id="group-call-banner-text" class="text-xs font-bold text-emerald-200">
+                    Group Call Active in #channel (1 participant)
+                </span>
+            </div>
+            <button onclick="joinActiveGroupCall()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg transition-colors cursor-pointer shadow-lg shadow-emerald-600/30">
+                Join Call
+            </button>
+        </div>
 
         <div id="chat-box" class="flex-1 p-3 sm:p-6 overflow-y-auto space-y-4 min-w-0"></div>
 
@@ -663,14 +741,17 @@
     <!-- APPLICATION LOGIC & WEBRTC ENGINE                        -->
     <!-- ========================================================= -->
     <script>
-        // Supabase Client Config
+        // Supabase Client Configuration
         const SUPABASE_URL = "https://yygscvzdlfudhjmyhuxu.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_AAAy7XWb589B4sBcR5Sqjw__sOLyOlE";
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // Core Application State Variables
+        // Core App State
         let currentUser = null;
         let activeChannel = 'general';
+        let customChannelsSet = new Set(['general', 'announcements']);
+        let channelNamesMap = new Map([['general', '# general'], ['announcements', '📢 announcements']]);
+
         let selectedFile = null;
         let knownMessageIds = new Set();
         let fastPollingInterval = null;
@@ -683,11 +764,12 @@
         let presenceChannel = null;
         const USERNAME_REGEX = /^[a-z0-9_.]+$/;
 
-        // Video & Media Call State Variables
+        // Call State Variables
         let localStream = null;
         let peerConnection = null;
         let displayStream = null;
         let activeCallTarget = null;
+        let activeCallType = 'dm'; // 'dm' | 'group' | 'loopback'
         let personalSignalingChannel = null;
         let pendingOfferPayload = null;
         let isCallActive = false;
@@ -697,14 +779,17 @@
         let isScreenSharing = false;
         let callStartTime = null;
         let callTimerInterval = null;
+        let activeGroupCallChannel = null;
 
-        // Web Audio API & Visualizer System
+        // Web Audio API & VU Systems
         let audioCtx = null;
         let localAudioAnalyser = null;
-        let remoteAudioAnalyser = null;
         let audioVUInterval = null;
 
-        // WebRTC STUN Config
+        // Cross-Tab Signaling BroadcastChannel Fallback
+        const broadcastSignaling = new BroadcastChannel('mesh_chat_signaling');
+
+        // WebRTC Config
         const rtcConfig = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -712,7 +797,7 @@
             ]
         };
 
-        // DOM Element Cache
+        // DOM Element References
         const authModal = document.getElementById('auth-modal');
         const authError = document.getElementById('auth-error');
         const profileModal = document.getElementById('profile-modal');
@@ -734,14 +819,43 @@
         const localAvatarFallback = document.getElementById('local-avatar-fallback');
         const remoteAvatarFallback = document.getElementById('remote-avatar-fallback');
 
-        // Device Dropdowns
+        // Screen Share Elements
+        const screensharePopupModal = document.getElementById('screenshare-popup-modal');
+        const screensharePopupVideo = document.getElementById('screenshare-popup-video');
+        const screensharePopupContainer = document.getElementById('screenshare-popup-container');
+
+        // Devices Dropdowns
         const micDeviceSelect = document.getElementById('mic-device-select');
         const camDeviceSelect = document.getElementById('cam-device-select');
         const speakerDeviceSelect = document.getElementById('speaker-device-select');
 
+        // Context Menu Targets
+        let contextChannelId = null;
+        let contextChannelName = null;
+
+        // Handle URL Hash Direct Channel Invites
+        window.addEventListener('load', () => {
+            const hash = window.location.hash;
+            if (hash && hash.startsWith('#invite=')) {
+                const inviteData = hash.replace('#invite=', '');
+                try {
+                    const [cid, cname] = atob(inviteData).split('|');
+                    if (cid && cname) {
+                        joinChannelById(cid, cname);
+                    }
+                } catch(e) {}
+            }
+        });
+
+        // Hide context menu on global click
+        window.addEventListener('click', (e) => {
+            if (!e.target.closest('#mention-autocomplete') && e.target !== msgInput) mentionAutocomplete.classList.add('hidden');
+            contextMenu.classList.add('hidden');
+        });
+
 
         // =========================================================
-        // UTILITY HELPERS: TOASTS, SOUND SYNTHESIZER & DIALOGS
+        // TOASTS, AUDIO SYNTHESIZER & CUSTOM DIALOGS
         // =========================================================
 
         function showToast(message, type = 'info') {
@@ -752,10 +866,7 @@
             toast.innerHTML = `<span>${message}</span>`;
             container.appendChild(toast);
             
-            setTimeout(() => {
-                toast.classList.remove('translate-x-10', 'opacity-0');
-            }, 10);
-
+            setTimeout(() => toast.classList.remove('translate-x-10', 'opacity-0'), 10);
             setTimeout(() => {
                 toast.classList.add('opacity-0', 'translate-x-10');
                 setTimeout(() => toast.remove(), 300);
@@ -777,27 +888,6 @@
             });
         }
 
-        function showConfirm(title, message) {
-            document.getElementById('dialog-title').textContent = title;
-            document.getElementById('dialog-message').textContent = message;
-            const cancelBtn = document.getElementById('dialog-cancel-btn');
-            cancelBtn.classList.remove('hidden');
-            const modal = document.getElementById('custom-dialog-modal');
-            modal.classList.remove('hidden');
-            
-            return new Promise((resolve) => {
-                document.getElementById('dialog-confirm-btn').onclick = () => {
-                    modal.classList.add('hidden');
-                    resolve(true);
-                };
-                cancelBtn.onclick = () => {
-                    modal.classList.add('hidden');
-                    resolve(false);
-                };
-            });
-        }
-
-        // Web Audio Synthesizer for Audio Chimes
         function playChime(type) {
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -832,165 +922,319 @@
 
 
         // =========================================================
-        // DEVICE ENUMERATION & DYNAMIC TRACK HOT-SWAPPING
+        // FEATURE 1: CHANNEL INVITES & RICH DM CARDS
         // =========================================================
 
-        async function enumerateDevices() {
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                micDeviceSelect.innerHTML = '<option value="">Default Microphone</option>';
-                camDeviceSelect.innerHTML = '<option value="">Default Camera</option>';
-                speakerDeviceSelect.innerHTML = '<option value="">Default Speaker</option>';
-
-                devices.forEach(device => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    option.textContent = device.label || `${device.kind} (${device.deviceId.substring(0, 5)}...)`;
-                    
-                    if (device.kind === 'audioinput') micDeviceSelect.appendChild(option);
-                    else if (device.kind === 'videoinput') camDeviceSelect.appendChild(option);
-                    else if (device.kind === 'audiooutput') speakerDeviceSelect.appendChild(option);
-                });
-            } catch (err) {
-                console.warn("Error enumerating devices:", err);
-            }
+        function openChannelInviteModalCurrent() {
+            contextChannelId = activeChannel;
+            contextChannelName = channelNamesMap.get(activeChannel) || `# ${activeChannel}`;
+            openChannelInviteModal();
         }
 
-        // Listen for plugged/unplugged hardware devices
-        if (navigator.mediaDevices && navigator.mediaDevices.ondevicechange !== undefined) {
-            navigator.mediaDevices.ondevicechange = () => {
-                enumerateDevices();
-                showToast("Media hardware devices updated", "info");
+        function openChannelInviteModalFromContext() {
+            openChannelInviteModal();
+        }
+
+        function openChannelInviteModal() {
+            if (contextChannelId === 'announcements') {
+                return showAlert("Invite Notice", "Announcements channel is open to all users by default.");
+            }
+            document.getElementById('invite-modal-channel-name').textContent = contextChannelName || `# ${contextChannelId}`;
+            
+            // Populate Friends List in Invite Modal
+            const list = document.getElementById('invite-friends-list');
+            list.innerHTML = '';
+            if (userFriends.size > 0) {
+                userFriends.forEach(friendUname => {
+                    const div = document.createElement('div');
+                    div.className = "flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800 text-xs";
+                    div.innerHTML = `
+                        <span class="font-semibold text-slate-200">@${escapeHTML(friendUname)}</span>
+                        <button onclick="sendChannelInviteToUser('${escapeHTML(friendUname)}')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] px-2.5 py-1 rounded-md transition-colors cursor-pointer">
+                            Send Invite
+                        </button>
+                    `;
+                    list.appendChild(div);
+                });
+            } else {
+                list.innerHTML = '<p class="text-[11px] text-slate-500 italic">No friends added yet.</p>';
+            }
+
+            document.getElementById('invite-modal').classList.remove('hidden');
+        }
+
+        function executeSendChannelInvite() {
+            const username = document.getElementById('invite-target-input').value.trim().toLowerCase();
+            if (!username) return showAlert("Invite Error", "Please enter a target username.");
+            sendChannelInviteToUser(username);
+        }
+
+        async function sendChannelInviteToUser(targetUsername) {
+            if (!currentUser) return;
+            const targetChanId = contextChannelId || activeChannel;
+            const targetChanName = contextChannelName || channelNamesMap.get(targetChanId) || `# ${targetChanId}`;
+
+            const dmChannelId = getDMChannelID(currentUser.username, targetUsername);
+            const invitePayloadStr = `[INVITE:${targetChanId}:${targetChanName}]`;
+
+            // Insert into Chat Messages
+            const { error } = await supabaseClient.from('chat_messages').insert([{
+                user_id: currentUser.id,
+                username: currentUser.username,
+                channel_id: dmChannelId,
+                message: `Hey @${targetUsername}! I'm inviting you to join ${targetChanName}.\n${invitePayloadStr}`
+            }]);
+
+            // Broadcast via Cross-Tab Signaling
+            broadcastSignaling.postMessage({
+                type: 'channel_invite',
+                sender: currentUser.username,
+                target: targetUsername,
+                channelId: targetChanId,
+                channelName: targetChanName
+            });
+
+            if (error) {
+                showToast("Invite sent via signal!", "success");
+            } else {
+                showToast(`Channel invite sent to @${targetUsername}!`, "success");
+            }
+
+            document.getElementById('invite-modal').classList.add('hidden');
+        }
+
+        function copyContextChannelLink() {
+            copyChannelInviteLinkById(contextChannelId, contextChannelName);
+        }
+        function copyCurrentInviteLink() {
+            copyChannelInviteLinkById(contextChannelId || activeChannel, contextChannelName || `# ${activeChannel}`);
+        }
+        function copyChannelInviteLinkById(cid, cname) {
+            const encoded = btoa(`${cid}|${cname}`);
+            const inviteUrl = `${window.location.origin}${window.location.pathname}#invite=${encoded}`;
+            
+            // Clipboard Fallback
+            const dummy = document.createElement('input');
+            document.body.appendChild(dummy);
+            dummy.value = inviteUrl;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+
+            showToast("Channel invite link copied to clipboard!", "success");
+        }
+
+        function joinChannelById(cid, cname) {
+            customChannelsSet.add(cid);
+            channelNamesMap.set(cid, cname);
+            activeChannel = cid;
+
+            loadChannels();
+            updateChannelHeaderControls();
+            loadChannelMessages();
+            showToast(`Joined channel ${cname}!`, "success");
+        }
+
+
+        // =========================================================
+        // FEATURE 2: ASPECT-RATIO PRESERVING SCREEN SHARE POPUP
+        // =========================================================
+
+        function displayScreenShareInPopup(stream, titleText = "Screen Share Stream") {
+            screensharePopupVideo.srcObject = stream;
+            document.getElementById('screenshare-popup-title').textContent = titleText;
+            screensharePopupModal.classList.remove('hidden');
+
+            // Dynamic Aspect Ratio Calculation
+            const videoTrack = stream.getVideoTracks()[0];
+            if (videoTrack) {
+                const settings = videoTrack.getSettings();
+                if (settings.width && settings.height) {
+                    applyDynamicAspectRatio(settings.width, settings.height);
+                }
+            }
+
+            screensharePopupVideo.onloadedmetadata = () => {
+                const w = screensharePopupVideo.videoWidth || 1920;
+                const h = screensharePopupVideo.videoHeight || 1080;
+                applyDynamicAspectRatio(w, h);
             };
         }
 
-        // Switch Microphone Device Live
-        micDeviceSelect.addEventListener('change', async () => {
-            const deviceId = micDeviceSelect.value;
-            if (!localStream) return;
+        function applyDynamicAspectRatio(width, height) {
+            const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+            const divisor = gcd(width, height);
+            const ratioW = Math.round(width / divisor);
+            const ratioH = Math.round(height / divisor);
+
+            const badge = document.getElementById('screenshare-aspect-badge');
+            badge.textContent = `${width}x${height} (${ratioW}:${ratioH})`;
+
+            // Set inline CSS Aspect Ratio
+            screensharePopupContainer.style.aspectRatio = `${width} / ${height}`;
+        }
+
+        function closeScreenSharePopup() {
+            screensharePopupModal.classList.add('hidden');
+        }
+
+        async function toggleScreenSharePiP() {
             try {
-                const constraints = { audio: deviceId ? { deviceId: { exact: deviceId } } : true };
-                const newAudioStream = await navigator.mediaDevices.getUserMedia(constraints);
-                const newTrack = newAudioStream.getAudioTracks()[0];
-                
-                const oldTrack = localStream.getAudioTracks()[0];
-                if (oldTrack) {
-                    localStream.removeTrack(oldTrack);
-                    oldTrack.stop();
+                if (document.pictureInPictureElement) {
+                    await document.exitPictureInPicture();
+                } else if (screensharePopupVideo.readyState >= 2) {
+                    await screensharePopupVideo.requestPictureInPicture();
                 }
-                localStream.addTrack(newTrack);
-
-                // Hot-swap track on active WebRTC PeerConnection
-                if (peerConnection) {
-                    const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'audio');
-                    if (sender) sender.replaceTrack(newTrack);
-                }
-
-                showToast("Microphone updated", "success");
             } catch (err) {
-                showAlert("Microphone Error", "Could not switch to selected microphone.");
+                showToast("Picture-in-Picture not supported", "error");
             }
-        });
+        }
 
-        // Switch Camera Device Live
-        camDeviceSelect.addEventListener('change', async () => {
-            const deviceId = camDeviceSelect.value;
-            if (!localStream || isScreenSharing) return;
-            try {
-                const constraints = { video: deviceId ? { deviceId: { exact: deviceId } } : true };
-                const newVideoStream = await navigator.mediaDevices.getUserMedia(constraints);
-                const newTrack = newVideoStream.getVideoTracks()[0];
-                
-                const oldTrack = localStream.getVideoTracks()[0];
-                if (oldTrack) {
-                    localStream.removeTrack(oldTrack);
-                    oldTrack.stop();
-                }
-                localStream.addTrack(newTrack);
-                localVideo.srcObject = localStream;
-
-                // Hot-swap track on active WebRTC PeerConnection
-                if (peerConnection) {
-                    const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-                    if (sender) sender.replaceTrack(newTrack);
-                }
-
-                showToast("Camera updated", "success");
-            } catch (err) {
-                showAlert("Camera Error", "Could not switch to selected camera.");
+        function toggleScreenShareFullscreen() {
+            if (!document.fullscreenElement) {
+                screensharePopupContainer.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
             }
-        });
+        }
 
-        // Switch Audio Output Device (Speakers) using setSinkId
-        speakerDeviceSelect.addEventListener('change', async () => {
-            const sinkId = speakerDeviceSelect.value;
-            if (typeof remoteAudio.setSinkId === 'function') {
+        // Screen Sharing Media Acquisition & Track Hot-Swapping
+        async function toggleScreenShare() {
+            if (!isCallActive) {
+                // If not in active call, allow standalone preview test
                 try {
-                    await remoteAudio.setSinkId(sinkId);
-                    showToast("Audio output speaker updated", "success");
+                    displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                    displayScreenShareInPopup(displayStream, "Your Screen Share Preview");
+                    isScreenSharing = true;
+                } catch(e) {}
+                return;
+            }
+
+            if (isScreenSharing) {
+                if (displayStream) {
+                    displayStream.getTracks().forEach(t => t.stop());
+                    displayStream = null;
+                }
+                const camTrack = localStream.getVideoTracks()[0];
+                if (camTrack && peerConnection) {
+                    const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+                    if (sender) sender.replaceTrack(camTrack);
+                }
+                localVideo.srcObject = localStream;
+                isScreenSharing = false;
+                closeScreenSharePopup();
+                document.getElementById('call-btn-screen').classList.remove('bg-indigo-600');
+                showToast("Screen sharing stopped", "info");
+            } else {
+                try {
+                    displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                    const screenTrack = displayStream.getVideoTracks()[0];
+
+                    screenTrack.onended = () => {
+                        if (isScreenSharing) toggleScreenShare();
+                    };
+
+                    localVideo.srcObject = displayStream;
+                    displayScreenShareInPopup(displayStream, "You are sharing your screen");
+
+                    if (peerConnection) {
+                        const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+                        if (sender) sender.replaceTrack(screenTrack);
+                    }
+
+                    isScreenSharing = true;
+                    document.getElementById('call-btn-screen').classList.add('bg-indigo-600');
+                    showToast("Screen sharing active", "success");
                 } catch (err) {
-                    showAlert("Speaker Error", "Failed to set audio output device.");
+                    showAlert("Screen Share", "Could not start display capture.");
                 }
-            } else {
-                document.getElementById('speaker-support-notice').textContent = "setSinkId is not supported in this browser.";
             }
-        });
-
-        // Toggle Video Preview Mirror Effect
-        document.getElementById('mirror-video-checkbox').addEventListener('change', (e) => {
-            if (e.target.checked) localVideo.classList.add('video-mirror');
-            else localVideo.classList.remove('video-mirror');
-        });
-
-        function toggleDeviceSettingsModal() {
-            enumerateDevices();
-            document.getElementById('device-settings-modal').classList.toggle('hidden');
         }
 
 
         // =========================================================
-        // AUDIO ANALYSER & VISUALIZER SYSTEM
+        // FEATURE 3: CHANNEL GROUP CALLS (#general Restricted)
         // =========================================================
 
-        function initAudioAnalysers() {
-            try {
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioCtx.state === 'suspended') audioCtx.resume();
+        function updateChannelHeaderControls() {
+            const callBtn = document.getElementById('call-btn');
+            const callBtnIcon = document.getElementById('call-btn-icon');
+            const callBtnLabel = document.getElementById('call-btn-label');
+            const banner = document.getElementById('group-call-banner');
 
-                if (localStream && localStream.getAudioTracks().length > 0) {
-                    const localSource = audioCtx.createMediaStreamSource(localStream);
-                    localAudioAnalyser = audioCtx.createAnalyser();
-                    localAudioAnalyser.fftSize = 64;
-                    localSource.connect(localAudioAnalyser);
+            if (activeChannel === 'general' || activeChannel === 'announcements') {
+                callBtn.disabled = true;
+                callBtn.className = "bg-slate-800 text-slate-500 px-3 py-1.5 rounded-lg text-xs font-bold cursor-not-allowed opacity-60 border border-slate-700 flex items-center gap-1.5";
+                callBtn.title = "Group calls disabled in #general & announcements";
+                callBtnIcon.textContent = "🚫";
+                callBtnLabel.textContent = "Calls Disabled";
+                banner.classList.add('hidden');
+            } else if (activeChannel.startsWith('dm_')) {
+                callBtn.disabled = false;
+                callBtn.className = "bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5 shadow-lg shadow-indigo-600/20";
+                callBtn.title = "Start 1-on-1 Direct Video Call";
+                callBtnIcon.textContent = "📹";
+                callBtnLabel.textContent = "Video Call";
+                banner.classList.add('hidden');
+            } else {
+                callBtn.disabled = false;
+                callBtn.className = "bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5 shadow-lg shadow-emerald-600/20";
+                callBtn.title = `Start Group Call in ${channelNamesMap.get(activeChannel) || activeChannel}`;
+                callBtnIcon.textContent = "👥";
+                callBtnLabel.textContent = "Start Group Call";
+
+                // Check active group call state
+                if (activeGroupCallChannel === activeChannel && !isCallActive) {
+                    banner.classList.remove('hidden');
+                    document.getElementById('group-call-banner-text').textContent = `Group Call Active in ${channelNamesMap.get(activeChannel) || activeChannel}`;
+                } else {
+                    banner.classList.add('hidden');
                 }
-
-                if (audioVUInterval) clearInterval(audioVUInterval);
-                audioVUInterval = setInterval(updateAudioVU, 80);
-            } catch(e) {
-                console.warn("Audio Context error:", e);
             }
         }
 
-        function updateAudioVU() {
-            // Local Microphone VU bar in settings & speaking ring fallback
-            if (localAudioAnalyser && !isMicMuted) {
-                const dataArray = new Uint8Array(localAudioAnalyser.frequencyBinCount);
-                localAudioAnalyser.getByteFrequencyData(dataArray);
-                let sum = 0;
-                for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-                const average = sum / dataArray.length;
-
-                const vuBar = document.getElementById('device-mic-vu');
-                if (vuBar) vuBar.style.width = `${Math.min(100, average * 2)}%`;
-
-                const localRing = document.getElementById('local-avatar-ring');
-                if (average > 15) localRing.classList.add('speaking-active');
-                else localRing.classList.remove('speaking-active');
+        function handleCallButtonClick() {
+            if (activeChannel === 'general' || activeChannel === 'announcements') {
+                return showAlert("Group Call Restricted", "Group calls are explicitly disabled in #general and 📢 announcements to avoid server spam.");
+            }
+            if (activeChannel.startsWith('dm_')) {
+                startCall();
             } else {
-                const vuBar = document.getElementById('device-mic-vu');
-                if (vuBar) vuBar.style.width = '0%';
-                const localRing = document.getElementById('local-avatar-ring');
-                if (localRing) localRing.classList.remove('speaking-active');
+                startGroupCallInChannel(activeChannel);
+            }
+        }
+
+        async function startGroupCallInChannel(channelId) {
+            const mediaOk = await acquireLocalMedia();
+            if (!mediaOk) return;
+
+            isLoopbackMode = false;
+            isCallActive = true;
+            activeCallType = 'group';
+            activeGroupCallChannel = channelId;
+
+            const cname = channelNamesMap.get(channelId) || `# ${channelId}`;
+            document.getElementById('call-room-title').textContent = `Group Call: ${cname}`;
+            document.getElementById('call-type-badge').textContent = "Channel Group Call";
+            document.getElementById('remote-name-badge').textContent = "Group Peers";
+
+            // Broadcast group call active state to peers
+            broadcastSignaling.postMessage({
+                type: 'group_call_started',
+                channelId,
+                channelName: cname,
+                hostUsername: currentUser ? currentUser.username : 'Guest'
+            });
+
+            setupCallUIState();
+            playChime('join');
+            updateChannelHeaderControls();
+            showToast(`Started Group Call in ${cname}!`, "success");
+        }
+
+        function joinActiveGroupCall() {
+            if (activeGroupCallChannel) {
+                startGroupCallInChannel(activeGroupCallChannel);
             }
         }
 
@@ -1010,8 +1254,6 @@
                 enumerateDevices();
                 return true;
             } catch (err) {
-                console.warn("Video/Audio device access warning:", err);
-                // Fallback to audio only if camera is unavailable
                 try {
                     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
                     localVideo.srcObject = null;
@@ -1020,28 +1262,26 @@
                     updateCamMuteUI();
                     return true;
                 } catch (audioErr) {
-                    showAlert("Media Permission Required", "Camera & Microphone permissions are needed to start a video call.");
+                    showAlert("Media Permission", "Microphone access is required to make calls.");
                     return false;
                 }
             }
         }
 
-        // Instant One-Click Local Video Loopback Test Mode
         async function startLoopbackVideoTest() {
             const mediaOk = await acquireLocalMedia();
             if (!mediaOk) return;
 
             isLoopbackMode = true;
             isCallActive = true;
+            activeCallType = 'loopback';
             activeCallTarget = "Local Loopback";
 
-            // Configure UI for Loopback Mode
             document.getElementById('call-room-title').textContent = "Local Hardware & Video Test";
             document.getElementById('call-type-badge').textContent = "Loopback Test";
             document.getElementById('remote-name-badge').textContent = "Loopback Peer (Simulated)";
             document.getElementById('local-name-badge').textContent = `${currentUser ? currentUser.display_name || currentUser.username : 'You'} (Host)`;
 
-            // Mirror local stream onto simulated remote video element for instant loopback preview
             remoteVideo.srcObject = localStream;
 
             setupCallUIState();
@@ -1049,26 +1289,24 @@
             showToast("Loopback Test Mode Active!", "success");
         }
 
-        // Real Multi-User WebRTC Call Initialization
         async function startCall() {
             let targetFriend = null;
             if (activeChannel.startsWith('dm_')) {
                 const parts = activeChannel.replace('dm_', '').split('||');
                 targetFriend = parts.find(u => u !== currentUser.username);
             }
-            if (!targetFriend) {
-                return showAlert("Direct Message Required", "You can start direct WebRTC video calls inside DM chats with friends, or click 'Test Cam & Mic (Loopback)' to test instantly.");
-            }
+            if (!targetFriend) return showAlert("Direct Call", "Select a friend DM chat to start a direct call.");
 
             const mediaOk = await acquireLocalMedia();
             if (!mediaOk) return;
 
             isLoopbackMode = false;
             isCallActive = true;
+            activeCallType = 'dm';
             activeCallTarget = targetFriend;
 
             document.getElementById('call-room-title').textContent = `Video Call: @${targetFriend}`;
-            document.getElementById('call-type-badge').textContent = "Live P2P WebRTC";
+            document.getElementById('call-type-badge').textContent = "1-on-1 P2P Call";
             document.getElementById('remote-name-badge').textContent = `@${targetFriend}`;
 
             setupPeerConnection(targetFriend);
@@ -1088,9 +1326,7 @@
             peerConnection = new RTCPeerConnection(rtcConfig);
             
             peerConnection.onicecandidate = (e) => {
-                if (e.candidate) {
-                    sendSignal(targetUsername, { type: 'ice-candidate', candidate: e.candidate });
-                }
+                if (e.candidate) sendSignal(targetUsername, { type: 'ice-candidate', candidate: e.candidate });
             };
 
             peerConnection.ontrack = (e) => {
@@ -1099,35 +1335,37 @@
                     remoteAudio.srcObject = e.streams[0];
                 }
             };
-
-            peerConnection.onconnectionstatechange = () => {
-                const state = peerConnection.connectionState;
-                const qualityBadge = document.getElementById('call-quality-badge');
-                if (state === 'connected') {
-                    qualityBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Signal HD`;
-                } else if (state === 'connecting') {
-                    qualityBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span> Connecting...`;
-                } else if (state === 'disconnected' || state === 'failed') {
-                    qualityBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> Disconnected`;
-                }
-            };
         }
 
-        // Signaling via Supabase Realtime Channels
+        // Handle BroadcastChannel & Supabase Realtime Signals
+        broadcastSignaling.onmessage = (event) => {
+            const data = event.data;
+            if (!data) return;
+
+            if (data.type === 'group_call_started') {
+                activeGroupCallChannel = data.channelId;
+                updateChannelHeaderControls();
+                showToast(`🟢 Group call active in ${data.channelName}`, "info");
+            } else if (data.type === 'channel_invite' && currentUser && data.target === currentUser.username) {
+                customChannelsSet.add(data.channelId);
+                channelNamesMap.set(data.channelId, data.channelName);
+                loadChannels();
+                showToast(`📨 Received invite to join ${data.channelName}`, "success");
+            }
+        };
+
         function listenToPersonalSignaling() {
             personalSignalingChannel = supabaseClient.channel(`user-signal:${currentUser.username}`);
             personalSignalingChannel.on('broadcast', { event: 'signal' }, async ({ payload }) => {
                 if (payload.type === 'offer') {
                     pendingOfferPayload = payload;
-                    document.getElementById('incoming-caller-text').textContent = `@${payload.callerUsername} is calling you for a video session...`;
+                    document.getElementById('incoming-caller-text').textContent = `@${payload.callerUsername} is calling...`;
                     document.getElementById('incoming-call-modal').classList.remove('hidden');
                 } else if (payload.type === 'answer' && peerConnection) {
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.answer));
-                    showToast("Call Connected!", "success");
                 } else if (payload.type === 'ice-candidate' && peerConnection) {
                     await peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate));
                 } else if (payload.type === 'end-call') {
-                    showToast("Call ended by remote peer", "info");
                     endActiveVideoCall(false);
                 }
             }).subscribe();
@@ -1137,7 +1375,6 @@
             supabaseClient.channel(`user-signal:${targetUsername}`).send({ type: 'broadcast', event: 'signal', payload });
         }
 
-        // Accept Incoming Call
         document.getElementById('accept-call-btn').addEventListener('click', async () => {
             document.getElementById('incoming-call-modal').classList.add('hidden');
             if (!pendingOfferPayload) return;
@@ -1151,9 +1388,6 @@
             activeCallTarget = payload.callerUsername;
 
             document.getElementById('call-room-title').textContent = `Video Call: @${payload.callerUsername}`;
-            document.getElementById('call-type-badge').textContent = "Live P2P WebRTC";
-            document.getElementById('remote-name-badge').textContent = `@${payload.callerUsername}`;
-
             setupPeerConnection(payload.callerUsername);
             localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
 
@@ -1162,44 +1396,39 @@
             await peerConnection.setLocalDescription(answer);
 
             sendSignal(payload.callerUsername, { type: 'answer', answer });
-
             setupCallUIState();
             playChime('join');
         });
 
-        // Reject Incoming Call
         document.getElementById('reject-call-btn').addEventListener('click', () => {
             document.getElementById('incoming-call-modal').classList.add('hidden');
             if (pendingOfferPayload) sendSignal(pendingOfferPayload.callerUsername, { type: 'end-call' });
             pendingOfferPayload = null;
         });
 
-        // Setup Call UI Overlay and Timers
         function setupCallUIState() {
             videoCallStage.classList.remove('hidden');
             callStartTime = Date.now();
             if (callTimerInterval) clearInterval(callTimerInterval);
             callTimerInterval = setInterval(updateCallTimer, 1000);
 
-            // Update Avatar Initial Fallbacks
             const myInitials = (currentUser ? (currentUser.display_name || currentUser.username) : 'ME').substring(0, 2).toUpperCase();
             document.getElementById('local-avatar-initials').textContent = myInitials;
             document.getElementById('local-avatar-name').textContent = currentUser ? currentUser.display_name || currentUser.username : 'You';
             
-            const remoteInitials = (activeCallTarget || 'RP').substring(0, 2).toUpperCase();
+            const remoteInitials = (activeCallTarget || 'GP').substring(0, 2).toUpperCase();
             document.getElementById('remote-avatar-initials').textContent = remoteInitials;
             document.getElementById('remote-avatar-name').textContent = activeCallTarget || 'Remote Peer';
         }
 
         function updateCallTimer() {
             if (!callStartTime) return;
-            const elapsedSeconds = Math.floor((Date.now() - callStartTime) / 1000);
-            const mins = String(Math.floor(elapsedSeconds / 60)).padStart(2, '0');
-            const secs = String(elapsedSeconds % 60).padStart(2, '0');
+            const elapsed = Math.floor((Date.now() - callStartTime) / 1000);
+            const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+            const secs = String(elapsed % 60).padStart(2, '0');
             document.getElementById('call-duration-timer').textContent = `${mins}:${secs}`;
         }
 
-        // End / Leave Video Call
         function endActiveVideoCall(notifyPeer = true) {
             if (notifyPeer && activeCallTarget && !isLoopbackMode) {
                 sendSignal(activeCallTarget, { type: 'end-call' });
@@ -1207,13 +1436,12 @@
 
             playChime('leave');
 
-            // Stop streams & tracks
             if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
+                localStream.getTracks().forEach(t => t.stop());
                 localStream = null;
             }
             if (displayStream) {
-                displayStream.getTracks().forEach(track => track.stop());
+                displayStream.getTracks().forEach(t => t.stop());
                 displayStream = null;
             }
             if (peerConnection) {
@@ -1234,12 +1462,14 @@
             activeCallTarget = null;
 
             videoCallStage.classList.add('hidden');
-            showToast("Video call ended", "info");
+            closeScreenSharePopup();
+            updateChannelHeaderControls();
+            showToast("Call ended", "info");
         }
 
 
         // =========================================================
-        // MIC, CAMERA MUTE & SCREEN SHARING CONTROLS
+        // MIC / CAM CONTROLS & DEVICE ENUMERATION
         // =========================================================
 
         function toggleMicMute() {
@@ -1262,17 +1492,15 @@
             if (isMicMuted) {
                 iconOn.classList.add('hidden');
                 iconOff.classList.remove('hidden');
-                btnMic.classList.add('bg-rose-600/80', 'hover:bg-rose-600');
+                btnMic.classList.add('bg-rose-600/80');
                 badge.textContent = '🔇';
                 badge.className = 'glass-panel p-1.5 rounded-lg text-xs text-rose-400';
-                showToast("Microphone Muted", "info");
             } else {
                 iconOn.classList.remove('hidden');
                 iconOff.classList.add('hidden');
-                btnMic.classList.remove('bg-rose-600/80', 'hover:bg-rose-600');
+                btnMic.classList.remove('bg-rose-600/80');
                 badge.textContent = '🎙️';
                 badge.className = 'glass-panel p-1.5 rounded-lg text-xs text-emerald-400';
-                showToast("Microphone Unmuted", "success");
             }
         }
 
@@ -1296,131 +1524,174 @@
             if (isCamMuted) {
                 iconOn.classList.add('hidden');
                 iconOff.classList.remove('hidden');
-                btnCam.classList.add('bg-rose-600/80', 'hover:bg-rose-600');
+                btnCam.classList.add('bg-rose-600/80');
                 localAvatarFallback.classList.remove('hidden');
                 badge.textContent = '🚫';
                 badge.className = 'glass-panel p-1.5 rounded-lg text-xs text-rose-400';
-                showToast("Camera Turned Off", "info");
             } else {
                 iconOn.classList.remove('hidden');
                 iconOff.classList.add('hidden');
-                btnCam.classList.remove('bg-rose-600/80', 'hover:bg-rose-600');
+                btnCam.classList.remove('bg-rose-600/80');
                 localAvatarFallback.classList.add('hidden');
                 badge.textContent = '📹';
                 badge.className = 'glass-panel p-1.5 rounded-lg text-xs text-emerald-400';
-                showToast("Camera Turned On", "success");
             }
         }
 
-        // Screen Sharing (`getDisplayMedia`) Logic
-        async function toggleScreenShare() {
-            if (!isCallActive) return;
+        async function enumerateDevices() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                micDeviceSelect.innerHTML = '<option value="">Default Microphone</option>';
+                camDeviceSelect.innerHTML = '<option value="">Default Camera</option>';
+                speakerDeviceSelect.innerHTML = '<option value="">Default Speaker</option>';
 
-            if (isScreenSharing) {
-                // Stop screen share & revert to camera
-                if (displayStream) {
-                    displayStream.getTracks().forEach(t => t.stop());
-                    displayStream = null;
+                devices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.textContent = device.label || `${device.kind} (${device.deviceId.substring(0, 5)}...)`;
+                    
+                    if (device.kind === 'audioinput') micDeviceSelect.appendChild(option);
+                    else if (device.kind === 'videoinput') camDeviceSelect.appendChild(option);
+                    else if (device.kind === 'audiooutput') speakerDeviceSelect.appendChild(option);
+                });
+            } catch (err) {}
+        }
+
+        function initAudioAnalysers() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                if (localStream && localStream.getAudioTracks().length > 0) {
+                    const localSource = audioCtx.createMediaStreamSource(localStream);
+                    localAudioAnalyser = audioCtx.createAnalyser();
+                    localAudioAnalyser.fftSize = 64;
+                    localSource.connect(localAudioAnalyser);
                 }
-                const camTrack = localStream.getVideoTracks()[0];
-                if (camTrack && peerConnection) {
-                    const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-                    if (sender) sender.replaceTrack(camTrack);
-                }
-                localVideo.srcObject = localStream;
-                if (isLoopbackMode) remoteVideo.srcObject = localStream;
-                isScreenSharing = false;
-                document.getElementById('call-btn-screen').classList.remove('bg-indigo-600');
-                showToast("Screen sharing stopped", "info");
-            } else {
-                // Request Display Stream
-                try {
-                    displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-                    const screenTrack = displayStream.getVideoTracks()[0];
 
-                    screenTrack.onended = () => {
-                        if (isScreenSharing) toggleScreenShare();
-                    };
+                if (audioVUInterval) clearInterval(audioVUInterval);
+                audioVUInterval = setInterval(updateAudioVU, 80);
+            } catch(e) {}
+        }
 
-                    localVideo.srcObject = displayStream;
-                    if (isLoopbackMode) remoteVideo.srcObject = displayStream;
+        function updateAudioVU() {
+            if (localAudioAnalyser && !isMicMuted) {
+                const dataArray = new Uint8Array(localAudioAnalyser.frequencyBinCount);
+                localAudioAnalyser.getByteFrequencyData(dataArray);
+                let sum = 0;
+                for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+                const average = sum / dataArray.length;
 
-                    if (peerConnection) {
-                        const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
-                        if (sender) sender.replaceTrack(screenTrack);
-                    }
+                const vuBar = document.getElementById('device-mic-vu');
+                if (vuBar) vuBar.style.width = `${Math.min(100, average * 2)}%`;
 
-                    isScreenSharing = true;
-                    document.getElementById('call-btn-screen').classList.add('bg-indigo-600');
-                    showToast("Screen sharing active", "success");
-                } catch (err) {
-                    showAlert("Screen Share Warning", "Could not start display capture.");
+                const localRing = document.getElementById('local-avatar-ring');
+                if (localRing) {
+                    if (average > 15) localRing.classList.add('speaking-active');
+                    else localRing.classList.remove('speaking-active');
                 }
             }
         }
 
-        // Keyboard Shortucts for Mic & Camera
-        window.addEventListener('keydown', (e) => {
-            if (isCallActive && (e.ctrlKey || e.metaKey)) {
-                if (e.key.toLowerCase() === 'm') {
-                    e.preventDefault();
-                    toggleMicMute();
-                } else if (e.key.toLowerCase() === 'e') {
-                    e.preventDefault();
-                    toggleCamMute();
-                }
-            }
-        });
+        function toggleDeviceSettingsModal() {
+            enumerateDevices();
+            document.getElementById('device-settings-modal').classList.toggle('hidden');
+        }
 
         function toggleCallFullscreen() {
             if (!document.fullscreenElement) {
-                videoCallStage.requestFullscreen().catch(err => console.warn(err));
+                videoCallStage.requestFullscreen().catch(() => {});
             } else {
-                document.exitFullscreen().catch(err => console.warn(err));
+                document.exitFullscreen().catch(() => {});
             }
         }
 
         function toggleInCallChat() {
-            const drawer = document.getElementById('incall-side-drawer');
-            drawer.classList.toggle('hidden');
-            document.getElementById('incall-unread-dot').classList.add('hidden');
+            document.getElementById('incall-side-drawer').classList.toggle('hidden');
         }
-
-        document.getElementById('incall-chat-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const input = document.getElementById('incall-msg-input');
-            const text = input.value.trim();
-            if (!text) return;
-
-            const container = document.getElementById('incall-messages-container');
-            const msgDiv = document.createElement('div');
-            msgDiv.className = "bg-slate-950 p-2 rounded-lg border border-slate-800";
-            msgDiv.innerHTML = `
-                <div class="font-bold text-indigo-400">${currentUser ? currentUser.display_name || currentUser.username : 'You'}</div>
-                <div class="text-slate-200 mt-0.5">${escapeHTML(text)}</div>
-            `;
-            container.appendChild(msgDiv);
-            container.scrollTop = container.scrollHeight;
-            input.value = '';
-        });
 
 
         // =========================================================
-        // SUPABASE AUTH, PROFILE & CHAT SYSTEM LOGIC
+        // CHAT MESSAGE RENDERING & INVITE CARD DETECTOR
+        // =========================================================
+
+        async function appendMessageUI(msg) {
+            if (document.getElementById(`msg-${msg.id}`)) return;
+
+            const msgEl = document.createElement('div');
+            msgEl.id = `msg-${msg.id}`;
+            msgEl.className = "p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl space-y-2 relative group min-w-0 break-words flex gap-3 items-start";
+
+            const profile = await fetchProfile(msg.username);
+            const displayName = profile ? (profile.display_name || profile.username) : msg.username;
+            const avatarUrl = profile ? profile.avatar_url : null;
+
+            let textContent = msg.message || '';
+            let inviteCardHTML = '';
+
+            // Detect Channel Invite Payload tag: [INVITE:channel_id:channel_name]
+            const inviteMatch = textContent.match(/\[INVITE:([^:]+):([^\]]+)\]/);
+            if (inviteMatch) {
+                const invChanId = inviteMatch[1];
+                const invChanName = inviteMatch[2];
+                textContent = textContent.replace(/\[INVITE:[^\]]+\]/g, '').trim();
+
+                inviteCardHTML = `
+                    <div class="mt-2.5 p-3.5 rounded-xl bg-gradient-to-r from-indigo-900/40 to-purple-900/40 border border-indigo-500/40 space-y-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-base">📢</span>
+                            <span class="text-xs font-bold text-indigo-300">Channel Invitation</span>
+                        </div>
+                        <p class="text-xs text-slate-200">
+                            You have been invited to join <b class="text-indigo-400">${escapeHTML(invChanName)}</b>
+                        </p>
+                        <button onclick="joinChannelById('${escapeHTML(invChanId)}', '${escapeHTML(invChanName)}')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg shadow-lg shadow-indigo-600/30 transition-all cursor-pointer flex items-center gap-1.5">
+                            <span>🚀</span> Join Channel
+                        </button>
+                    </div>
+                `;
+            }
+
+            let safeContent = escapeHTML(textContent);
+            safeContent = safeContent.replace(/@([a-z0-9_.]+)/g, '<span class="text-indigo-400 font-semibold cursor-pointer hover:underline" onclick="showUserProfile(\'$1\')">@$1</span>');
+
+            let mediaContent = '';
+            if (msg.media_url) {
+                const url = msg.media_url;
+                if (url.startsWith('data:image/') || url.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i)) {
+                    mediaContent = `<div class="mt-2"><img src="${escapeHTML(url)}" class="max-h-60 rounded-lg border border-slate-800 object-contain"></div>`;
+                } else {
+                    mediaContent = `<div class="mt-2"><a href="${escapeHTML(url)}" target="_blank" download="attachment" class="inline-block bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 text-xs px-3 py-1.5 rounded-lg border border-indigo-500/40 transition-colors">📥 Download Attachment</a></div>`;
+                }
+            }
+
+            const avatarHTML = avatarUrl ? `<img src="${escapeHTML(avatarUrl)}" class="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5 border border-slate-700 cursor-pointer" onclick="showUserProfile('${escapeHTML(msg.username)}')">` : `<div class="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 cursor-pointer" onclick="showUserProfile('${escapeHTML(msg.username)}')">${escapeHTML(displayName.charAt(0).toUpperCase())}</div>`;
+
+            msgEl.innerHTML = `
+                ${avatarHTML}
+                <div class="flex-1 min-w-0">
+                    <div class="flex justify-between items-center text-xs">
+                        <span onclick="showUserProfile('${escapeHTML(msg.username)}')" class="font-bold text-slate-200 cursor-pointer hover:underline">${escapeHTML(displayName)}</span>
+                        <span class="text-[10px] text-slate-500">${new Date(msg.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                    </div>
+                    ${safeContent ? `<p class="text-xs text-slate-300 mt-1 msg-content">${safeContent}</p>` : ''}
+                    ${inviteCardHTML}
+                    ${mediaContent}
+                </div>
+            `;
+            chatBox.appendChild(msgEl);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+
+        // =========================================================
+        // CORE AUTH & CHAT HELPERS
         // =========================================================
 
         document.getElementById('signup-btn').addEventListener('click', async () => {
-            authError.classList.add('hidden');
             const username = document.getElementById('auth-username').value.trim();
             const password = document.getElementById('auth-password').value;
-
-            if (!USERNAME_REGEX.test(username)) {
-                return showAuthError("Username can ONLY contain lowercase letters, numbers, underscores (_), and dots (.). No capitals or spaces.");
-            }
-            if (!password || password.length < 6) return showAuthError("Password must be at least 6 characters.");
-
-            const { data: existing } = await supabaseClient.from('profiles').select('username').eq('username', username).maybeSingle();
-            if (existing) return showAuthError("Username already taken.");
+            if (!USERNAME_REGEX.test(username)) return showAuthError("Username can ONLY contain lowercase letters, numbers, _, and .");
 
             const password_hash = await hashPassword(password);
             const userId = crypto.randomUUID();
@@ -1432,17 +1703,12 @@
         });
 
         document.getElementById('login-btn').addEventListener('click', async () => {
-            authError.classList.add('hidden');
             const username = document.getElementById('auth-username').value.trim();
             const password = document.getElementById('auth-password').value;
-
-            if (!username || !password) return showAuthError("Username and password required.");
-
             const password_hash = await hashPassword(password);
-            const { data: profile, error } = await supabaseClient.from('profiles').select('*').eq('username', username).maybeSingle();
 
-            if (error || !profile) return showAuthError("Account not found.");
-            if (profile.password_hash !== password_hash) return showAuthError("Incorrect password.");
+            const { data: profile, error } = await supabaseClient.from('profiles').select('*').eq('username', username).maybeSingle();
+            if (error || !profile || profile.password_hash !== password_hash) return showAuthError("Invalid credentials.");
 
             initAuthenticatedSession(profile);
         });
@@ -1468,7 +1734,6 @@
             setupPresenceRealtime();
             listenToPersonalSignaling();
             loadFriends();
-            listenToFriendsRealtime();
             loadChannels();
             loadChannelMessages();
             startFastPolling();
@@ -1497,20 +1762,11 @@
                     });
                     updatePresenceUI();
                 })
-                .on('broadcast', { event: 'typing' }, ({ payload }) => {
-                    if (payload.channel_id === activeChannel && payload.username !== currentUser?.username) {
-                        typingIndicator.textContent = `@${payload.username} is typing...`;
-                        typingIndicator.classList.remove('hidden');
-                        clearTimeout(typingTimeout);
-                        typingTimeout = setTimeout(() => typingIndicator.classList.add('hidden'), 2500);
-                    }
-                })
                 .subscribe(async (status) => {
                     if (status === 'SUBSCRIBED') {
                         await presenceChannel.track({
                             username: currentUser.username,
-                            standing: manualStanding,
-                            custom_status: currentUser.custom_status || ''
+                            standing: manualStanding
                         });
                     }
                 });
@@ -1539,100 +1795,6 @@
             return `<span class="inline-block w-2.5 h-2.5 rounded-full ${getStandingColorClass(standing)} shrink-0"></span>`;
         }
 
-        function openPresenceModal() {
-            const onlineContainer = document.getElementById('presence-online-users');
-            const offlineContainer = document.getElementById('presence-offline-users');
-            onlineContainer.innerHTML = '';
-            offlineContainer.innerHTML = '';
-
-            Array.from(allKnownUsers).forEach(uname => {
-                const standing = onlineUsersMap.get(uname) || 'offline';
-                const userDiv = document.createElement('div');
-                userDiv.className = "flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800 text-xs";
-                userDiv.innerHTML = `
-                    <div class="flex items-center gap-2 cursor-pointer" onclick="showUserProfile('${uname}')">
-                        ${renderStandingBadgeDot(standing)}
-                        <span class="font-bold text-slate-200 hover:underline">@${escapeHTML(uname)}</span>
-                    </div>
-                    <span class="text-[10px] text-slate-500 uppercase font-bold">${standing}</span>
-                `;
-
-                if (standing !== 'offline') onlineContainer.appendChild(userDiv);
-                else offlineContainer.appendChild(userDiv);
-            });
-
-            if (!onlineContainer.hasChildNodes()) onlineContainer.innerHTML = '<p class="text-xs text-slate-500 italic">None online</p>';
-            if (!offlineContainer.hasChildNodes()) offlineContainer.innerHTML = '<p class="text-xs text-slate-500 italic">None offline</p>';
-
-            document.getElementById('presence-modal').classList.remove('hidden');
-        }
-
-        document.getElementById('open-profile-btn').addEventListener('click', () => {
-            document.getElementById('edit-display-name').value = currentUser.display_name || currentUser.username;
-            document.getElementById('edit-bio').value = currentUser.bio || '';
-            document.getElementById('edit-standing-select').value = manualStanding;
-            document.getElementById('edit-status-text').value = currentUser.custom_status || '';
-            profileModal.classList.remove('hidden');
-        });
-        document.getElementById('close-profile-btn').addEventListener('click', () => profileModal.classList.add('hidden'));
-
-        document.getElementById('save-profile-btn').addEventListener('click', async () => {
-            const display_name = document.getElementById('edit-display-name').value.trim() || currentUser.username;
-            const bio = document.getElementById('edit-bio').value.trim();
-            const standing = document.getElementById('edit-standing-select').value;
-            const custom_status = document.getElementById('edit-status-text').value.trim();
-
-            const { error } = await supabaseClient.from('profiles').update({ display_name, bio, standing, custom_status }).eq('id', currentUser.id);
-            if (!error) {
-                currentUser.display_name = display_name;
-                currentUser.bio = bio;
-                currentUser.custom_status = custom_status;
-                manualStanding = standing;
-                updateUserDisplayUI();
-                profileModal.classList.add('hidden');
-                showToast("Profile changes saved", "success");
-            }
-        });
-
-        pfpUploadInput.addEventListener('change', async (e) => {
-            if (!e.target.files || !e.target.files[0] || !currentUser) return;
-            const file = e.target.files[0];
-            let avatar_url = null;
-
-            try {
-                const fileExt = file.name.split('.').pop();
-                const filePath = `avatars/${currentUser.id}_${Date.now()}.${fileExt}`;
-                const { error: uploadErr } = await supabaseClient.storage.from('chat-media').upload(filePath, file, { upsert: true });
-                if (uploadErr) throw uploadErr;
-
-                const { data: urlData } = supabaseClient.storage.from('chat-media').getPublicUrl(filePath);
-                avatar_url = urlData.publicUrl;
-            } catch(err) {
-                avatar_url = await fileToBase64(file);
-            }
-
-            await supabaseClient.from('profiles').update({ avatar_url }).eq('id', currentUser.id);
-            currentUser.avatar_url = avatar_url;
-            updateUserDisplayUI();
-            loadChannelMessages();
-        });
-
-        function updateUserDisplayUI() {
-            document.getElementById('current-user-display').textContent = currentUser.display_name || currentUser.username;
-            document.getElementById('current-user-status').textContent = currentUser.custom_status ? `💬 ${currentUser.custom_status}` : '';
-            if (currentUser.avatar_url) {
-                renderAvatar(currentUser.username, currentUser.avatar_url, document.getElementById('user-avatar'));
-            } else {
-                document.getElementById('user-avatar').textContent = (currentUser.display_name || currentUser.username).charAt(0).toUpperCase();
-            }
-            updatePresenceUI();
-        }
-
-        function renderAvatar(username, url, el) {
-            if (url) el.innerHTML = `<img src="${url}" class="w-full h-full object-cover rounded-full">`;
-            else el.textContent = username.charAt(0).toUpperCase();
-        }
-
         async function fetchProfile(username) {
             if (userProfileCache.has(username)) return userProfileCache.get(username);
             const { data } = await supabaseClient.from('profiles').select('*').eq('username', username).maybeSingle();
@@ -1642,7 +1804,7 @@
 
         async function showUserProfile(username) {
             const profile = await fetchProfile(username);
-            if (!profile) return showAlert("Error", "Profile not found.");
+            if (!profile) return showAlert("Profile Error", "Profile not found.");
 
             const avatarEl = document.getElementById('view-profile-avatar');
             if (profile.avatar_url) {
@@ -1653,13 +1815,7 @@
 
             document.getElementById('view-profile-dname').textContent = profile.display_name || profile.username;
             document.getElementById('view-profile-uname').textContent = `@${profile.username}`;
-            document.getElementById('view-profile-status').textContent = profile.custom_status ? `💬 ${profile.custom_status}` : `Standing: ${onlineUsersMap.get(username) || 'offline'}`;
             document.getElementById('view-profile-bio').textContent = profile.bio || "No bio provided.";
-
-            document.getElementById('report-user-btn').onclick = () => {
-                document.getElementById('view-profile-modal').classList.add('hidden');
-                triggerReport('user', username);
-            };
             document.getElementById('view-profile-modal').classList.remove('hidden');
         }
 
@@ -1667,36 +1823,49 @@
             const { data: channels } = await supabaseClient.from('channels').select('*');
             const channelList = document.getElementById('channel-list');
             
-            channelList.innerHTML = `
-                <button data-channel="general" data-name="# general" class="channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${activeChannel === 'general' ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'} transition-colors flex items-center justify-between cursor-pointer"><span># general</span></button>
-                <button data-channel="announcements" data-name="📢 announcements" class="channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${activeChannel === 'announcements' ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'} transition-colors flex items-center justify-between cursor-pointer"><span>📢 announcements</span></button>
-            `;
-
             if (channels) {
                 channels.forEach(chan => {
-                    if (chan.id !== 'general' && chan.id !== 'announcements') {
-                        const btn = document.createElement('button');
-                        btn.dataset.channel = chan.id;
-                        btn.dataset.name = chan.name;
-                        const isActive = activeChannel === chan.id;
-                        btn.className = `channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${isActive ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'} transition-colors flex items-center justify-between cursor-pointer`;
-                        btn.innerHTML = `<span>${chan.name}</span>`;
-                        channelList.appendChild(btn);
-                    }
+                    customChannelsSet.add(chan.id);
+                    channelNamesMap.set(chan.id, chan.name);
                 });
             }
+
+            channelList.innerHTML = '';
+            customChannelsSet.forEach(cid => {
+                const cname = channelNamesMap.get(cid) || `# ${cid}`;
+                const btn = document.createElement('button');
+                btn.dataset.channel = cid;
+                btn.dataset.name = cname;
+                const isActive = activeChannel === cid;
+                btn.className = `channel-btn w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold ${isActive ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'} transition-colors flex items-center justify-between cursor-pointer`;
+                btn.innerHTML = `<span>${cname}</span>`;
+                channelList.appendChild(btn);
+            });
+
+            // Bind Right-Click Context Menu
+            document.querySelectorAll('.channel-btn').forEach(btn => {
+                btn.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    contextChannelId = btn.dataset.channel;
+                    contextChannelName = btn.dataset.name;
+                    contextMenu.style.top = `${e.clientY}px`;
+                    contextMenu.style.left = `${e.clientX}px`;
+                    contextMenu.classList.remove('hidden');
+                });
+            });
+
+            updateChannelHeaderControls();
         }
 
         async function createNewChannel() {
             const name = prompt("Enter new channel name:");
             if (!name) return;
             const channelId = 'chan_' + Math.random().toString(36).substring(2, 9);
+            const formattedName = `# ${name}`;
 
-            const { error } = await supabaseClient.from('channels').insert([{ id: channelId, name: `# ${name}`, creator_id: currentUser.id }]);
+            const { error } = await supabaseClient.from('channels').insert([{ id: channelId, name: formattedName, creator_id: currentUser.id }]);
             if (!error) {
-                activeChannel = channelId;
-                loadChannels();
-                loadChannelMessages();
+                joinChannelById(channelId, formattedName);
             }
         }
 
@@ -1720,7 +1889,7 @@
             if (!targetUsername || targetUsername === currentUser.username) return;
 
             const { data: targetUser } = await supabaseClient.from('profiles').select('*').eq('username', targetUsername).maybeSingle();
-            if (!targetUser) return showAlert("User Search", "User not found.");
+            if (!targetUser) return showAlert("Friend Search", "User not found.");
 
             const { error } = await supabaseClient.from('friends').insert([{
                 user_id: currentUser.id,
@@ -1731,7 +1900,7 @@
                 input.value = '';
                 loadFriends();
                 showToast("Friend request sent!", "success");
-            } else showToast(error.message, "error");
+            }
         });
 
         async function loadFriends() {
@@ -1775,7 +1944,6 @@
                             </span>
                             <div class="flex gap-1 shrink-0">
                                 <button onclick="openDM('${other.username}')" class="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 text-[10px] px-2 py-0.5 rounded cursor-pointer">DM</button>
-                                <button onclick="removeFriend('${req.id}')" class="text-rose-400 text-[10px] px-1 cursor-pointer">✕</button>
                             </div>
                         `;
                         friendsList.appendChild(item);
@@ -1794,18 +1962,15 @@
                         hasRequests = true;
                         const reqItem = document.createElement('div');
                         reqItem.className = "flex items-center justify-between text-xs bg-slate-950 p-2 rounded-lg border border-slate-800 gap-1";
-                        if (isSender) {
-                            reqItem.innerHTML = `<span class="text-slate-400 italic truncate">@${other.username} (Sent)</span>`;
-                        } else {
+                        if (!isSender) {
                             reqItem.innerHTML = `
                                 <span class="font-semibold text-slate-200 truncate">@${other.username}</span>
                                 <div class="flex gap-1 shrink-0">
                                     <button onclick="acceptFriend('${req.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded cursor-pointer font-bold">✓</button>
-                                    <button onclick="removeFriend('${req.id}')" class="bg-rose-600 hover:bg-rose-500 text-white text-[10px] px-2 py-0.5 rounded cursor-pointer font-bold">✕</button>
                                 </div>
                             `;
+                            requestsList.appendChild(reqItem);
                         }
-                        requestsList.appendChild(reqItem);
                     }
                 });
             }
@@ -1817,20 +1982,13 @@
             await supabaseClient.from('friends').update({ status: 'accepted' }).eq('id', id);
             loadFriends();
         }
-        async function removeFriend(id) {
-            await supabaseClient.from('friends').delete().eq('id', id);
-            loadFriends();
-        }
+
         function openDM(targetUsername) {
-            if (!userFriends.has(targetUsername)) return showAlert("Friend Required", "Must be friends to send DMs.");
             const cid = getDMChannelID(currentUser.username, targetUsername);
             activeChannel = cid;
             document.getElementById('active-channel-title').textContent = `@ ${targetUsername}`;
+            updateChannelHeaderControls();
             loadChannelMessages();
-        }
-
-        function listenToFriendsRealtime() {
-            supabaseClient.channel('public:friends').on('postgres_changes', { event: '*', schema: 'public', table: 'friends' }, () => loadFriends()).subscribe();
         }
 
         async function loadChannelMessages() {
@@ -1864,83 +2022,19 @@
             }
         }
 
-        async function appendMessageUI(msg) {
-            if (document.getElementById(`msg-${msg.id}`)) return;
-
-            const msgEl = document.createElement('div');
-            msgEl.id = `msg-${msg.id}`;
-            msgEl.className = "p-3 bg-slate-900/50 border border-slate-800/80 rounded-xl space-y-2 relative group min-w-0 break-words flex gap-3 items-start";
-
-            const profile = await fetchProfile(msg.username);
-            const displayName = profile ? (profile.display_name || profile.username) : msg.username;
-            const avatarUrl = profile ? profile.avatar_url : null;
-
-            let safeContent = escapeHTML(msg.message || '');
-            safeContent = safeContent.replace(/@([a-z0-9_.]+)/g, '<span class="text-indigo-400 font-semibold cursor-pointer hover:underline" onclick="showUserProfile(\'$1\')">@$1</span>');
-
-            let mediaContent = '';
-            if (msg.media_url) {
-                const url = msg.media_url;
-                if (url.startsWith('data:image/') || url.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i)) {
-                    mediaContent = `<div class="mt-2"><img src="${escapeHTML(url)}" class="max-h-60 rounded-lg border border-slate-800 object-contain"></div>`;
-                } else if (url.startsWith('data:video/') || url.match(/\.(mp4|webm)($|\?)/i)) {
-                    mediaContent = `<div class="mt-2"><video src="${escapeHTML(url)}" controls class="max-h-60 rounded-lg border border-slate-800 w-full max-w-md"></video></div>`;
-                } else if (url.startsWith('data:audio/') || url.match(/\.(mp3|wav|ogg)($|\?)/i)) {
-                    mediaContent = `<div class="mt-2"><audio src="${escapeHTML(url)}" controls class="w-full max-w-xs"></audio></div>`;
-                } else {
-                    mediaContent = `<div class="mt-2"><a href="${escapeHTML(url)}" target="_blank" download="attachment" class="inline-block bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 text-xs px-3 py-1.5 rounded-lg border border-indigo-500/40 transition-colors">📥 Download Attachment</a></div>`;
-                }
-            }
-
-            const avatarHTML = avatarUrl ? `<img src="${escapeHTML(avatarUrl)}" class="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5 border border-slate-700 cursor-pointer" onclick="showUserProfile('${escapeHTML(msg.username)}')">` : `<div class="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 cursor-pointer" onclick="showUserProfile('${escapeHTML(msg.username)}')">${escapeHTML(displayName.charAt(0).toUpperCase())}</div>`;
-
-            msgEl.innerHTML = `
-                ${avatarHTML}
-                <div class="flex-1 min-w-0">
-                    <div class="flex justify-between items-center text-xs">
-                        <span onclick="showUserProfile('${escapeHTML(msg.username)}')" class="font-bold text-slate-200 cursor-pointer hover:underline">${escapeHTML(displayName)}</span>
-                        <span class="text-[10px] text-slate-500">${new Date(msg.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
-                    </div>
-                    ${safeContent ? `<p class="text-xs text-slate-300 mt-1 msg-content">${safeContent}</p>` : ''}
-                    ${mediaContent}
-                </div>
-            `;
-            chatBox.appendChild(msgEl);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-
         document.getElementById('chat-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const text = msgInput.value.trim();
-            if ((!text && !selectedFile) || !currentUser) return;
-
-            let mediaUrl = null;
-            if (selectedFile) {
-                try {
-                    const fileExt = selectedFile.name.split('.').pop();
-                    const filePath = `uploads/${currentUser.id}_${Date.now()}.${fileExt}`;
-                    const { error } = await supabaseClient.storage.from('chat-media').upload(filePath, selectedFile);
-                    if (error) throw error;
-
-                    const { data: urlData } = supabaseClient.storage.from('chat-media').getPublicUrl(filePath);
-                    mediaUrl = urlData.publicUrl;
-                } catch (err) {
-                    mediaUrl = await fileToBase64(selectedFile);
-                }
-            }
+            if (!text || !currentUser) return;
 
             await supabaseClient.from('chat_messages').insert([{
                 user_id: currentUser.id,
                 username: currentUser.username,
                 channel_id: activeChannel,
-                message: text,
-                media_url: mediaUrl
+                message: text
             }]);
 
             msgInput.value = '';
-            selectedFile = null;
-            mediaFileInput.value = '';
-            filePreview.classList.add('hidden');
             loadChannelMessages();
         });
 
@@ -1954,27 +2048,22 @@
                 }).subscribe();
         }
 
-        function triggerReport(targetType, targetId) {
-            document.getElementById('report-reason-input').value = '';
-            document.getElementById('report-modal').classList.remove('hidden');
-        }
-
-        async function fileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-            });
+        function updateUserDisplayUI() {
+            document.getElementById('current-user-display').textContent = currentUser.display_name || currentUser.username;
+            if (currentUser.avatar_url) {
+                document.getElementById('user-avatar').innerHTML = `<img src="${currentUser.avatar_url}" class="w-full h-full object-cover rounded-full">`;
+            } else {
+                document.getElementById('user-avatar').textContent = (currentUser.display_name || currentUser.username).charAt(0).toUpperCase();
+            }
         }
 
         function escapeHTML(str) {
             return (str || '').replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
         }
 
-        // Initialize App on DOM Ready
         window.addEventListener('DOMContentLoaded', () => {
             enumerateDevices();
+            updateChannelHeaderControls();
         });
     </script>
 </body>
